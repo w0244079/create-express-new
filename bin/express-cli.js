@@ -54,6 +54,20 @@ const VIEW_ENGINES = {
   twig: { pkg: 'twig', version: '^3.0.0' }
 }
 
+// tsconfig.json for TypeScript apps, which Node.js runs by stripping types
+const TSCONFIG = {
+  compilerOptions: {
+    target: 'esnext',
+    module: 'nodenext',
+    strict: true,
+    noEmit: true,
+    allowImportingTsExtensions: true,
+    erasableSyntaxOnly: true,
+    verbatimModuleSyntax: true,
+    skipLibCheck: true
+  }
+}
+
 // command line options
 const OPTIONS = {
   cjs: { type: 'boolean' },
@@ -65,6 +79,7 @@ const OPTIONS = {
   helmet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   'no-view': { type: 'boolean' },
+  ts: { type: 'boolean' },
   version: { type: 'boolean' },
   view: { type: 'string', short: 'v' }
 }
@@ -135,6 +150,11 @@ function createApplication (name, dir, options, done) {
   const esm = !options.cjs
   const dirname = esm ? 'import.meta.dirname' : '__dirname'
 
+  // Language
+  const ts = Boolean(options.ts)
+  const ext = ts ? 'ts' : 'js'
+  const www = './bin/www.' + ext
+
   // Package
   const pkg = {
     name,
@@ -142,11 +162,12 @@ function createApplication (name, dir, options, done) {
     private: true,
     type: esm ? 'module' : 'commonjs',
     scripts: {
-      start: 'node ./bin/www.js',
+      start: 'node ' + www,
       test: 'node --test'
     },
     engines: {
-      node: '>=22'
+      // TypeScript type stripping is enabled by default from Node.js 22.18
+      node: ts ? '>=22.18' : '>=22'
     },
     dependencies: {
       express: '^5.2.1'
@@ -156,9 +177,15 @@ function createApplication (name, dir, options, done) {
 
   // JavaScript
   const app = loadTemplate('js/app.js')
-  const www = loadTemplate('js/www.js')
+  const server = loadTemplate('js/www.js')
+  const test = loadTemplate('js/test/app.test.js')
 
-  app.locals.esm = www.locals.esm = esm
+  for (const template of [app, server, test]) {
+    template.locals.esm = esm
+    template.locals.ext = ext
+    template.locals.ts = ts
+  }
+
   app.locals.dirname = dirname
 
   // App modules
@@ -218,7 +245,7 @@ function createApplication (name, dir, options, done) {
 
     // restart the app and recompile stylesheets on change
     pkg.scripts.dev = 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app'
-    pkg.scripts['dev:app'] = 'node --watch ./bin/www.js'
+    pkg.scripts['dev:app'] = 'node --watch ' + www
     pkg.scripts['dev:css'] = css.watch
     pkg.devDependencies.concurrently = '^10.0.5'
     Object.assign(pkg.devDependencies, css.devDependencies)
@@ -226,7 +253,7 @@ function createApplication (name, dir, options, done) {
     copyTemplateMulti('css', dir + '/public/stylesheets', 'css')
 
     // restart the app on change
-    pkg.scripts.dev = 'node --watch ./bin/www.js'
+    pkg.scripts.dev = 'node --watch ' + www
   }
 
   // copy route templates
@@ -234,21 +261,19 @@ function createApplication (name, dir, options, done) {
   for (const route of ['index', 'users']) {
     const router = loadTemplate('js/routes/' + route + '.js')
     router.locals.esm = esm
-    write(path.join(dir, 'routes', route + '.js'), router.render())
+    write(path.join(dir, 'routes', route + '.' + ext), router.render())
   }
 
   // copy test templates
   mkdir(dir, 'test')
-  const test = loadTemplate('js/test/app.test.js')
-  test.locals.esm = esm
-  write(path.join(dir, 'test/app.test.js'), test.render())
+  write(path.join(dir, 'test/app.test.' + ext), test.render())
 
   // Index router mount
-  app.locals.localModules.indexRouter = './routes/index.js'
+  app.locals.localModules.indexRouter = './routes/index.' + ext
   app.locals.mounts.push({ path: '/', code: 'indexRouter' })
 
   // User router mount
-  app.locals.localModules.usersRouter = './routes/users.js'
+  app.locals.localModules.usersRouter = './routes/users.' + ext
   app.locals.mounts.push({ path: '/users', code: 'usersRouter' })
 
   // Template support
@@ -275,6 +300,21 @@ function createApplication (name, dir, options, done) {
     copyTemplate('js/gitignore', path.join(dir, '.gitignore'))
   }
 
+  // TypeScript type checking
+  if (ts) {
+    pkg.scripts.typecheck = 'tsc'
+    pkg.devDependencies.typescript = '^7.0.2'
+    pkg.devDependencies['@types/express'] = '^5.0.6'
+    pkg.devDependencies['@types/morgan'] = '^1.9.10'
+    pkg.devDependencies['@types/node'] = '^22.20.5'
+
+    if (options.view) pkg.devDependencies['@types/http-errors'] = '^2.0.5'
+    if (options.compression) pkg.devDependencies['@types/compression'] = '^1.8.1'
+    if (options.cookies) pkg.devDependencies['@types/cookie-parser'] = '^1.4.10'
+
+    write(path.join(dir, 'tsconfig.json'), JSON.stringify(TSCONFIG, null, 2) + '\n')
+  }
+
   // sort dependencies like npm(1)
   pkg.dependencies = sortedObject(pkg.dependencies)
   pkg.devDependencies = sortedObject(pkg.devDependencies)
@@ -284,10 +324,10 @@ function createApplication (name, dir, options, done) {
   }
 
   // write files
-  write(path.join(dir, 'app.js'), app.render())
+  write(path.join(dir, 'app.' + ext), app.render())
   write(path.join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
   mkdir(dir, 'bin')
-  write(path.join(dir, 'bin/www.js'), www.render(), MODE_0755)
+  write(path.join(dir, 'bin/www.' + ext), server.render(), MODE_0755)
 
   const prompt = launchedFromCmd() ? '>' : '$'
 
@@ -431,6 +471,12 @@ function main (options, done) {
       options.view = 'pug'
     }
 
+    if (options.ts && options.cjs) {
+      usage()
+      error('option `--ts\' cannot be used with `--cjs\'')
+      return done(1)
+    }
+
     if (options.css === 'compass') {
       warning("compass is no longer supported, using `--css=scss'")
       options.css = 'scss'
@@ -545,6 +591,7 @@ function usage () {
   console.log('        --no-view        use static html instead of view engine')
   console.log('    -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)')
   console.log('        --cjs            generate CommonJS modules instead of ES modules')
+  console.log('        --ts             generate TypeScript, run directly by Node.js')
   console.log('        --helmet         add helmet middleware for security headers')
   console.log('        --compression    add compression middleware for gzip/brotli responses')
   console.log('        --cookies        add cookie-parser middleware')

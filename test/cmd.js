@@ -91,7 +91,7 @@ describe('express(1)', function () {
 
     it('should pass npm test', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
-      npmTest(ctx.dir, done)
+      npmRun(ctx.dir, 'test', done)
     })
 
     it('should export an express app from app.js', function () {
@@ -326,7 +326,7 @@ describe('express(1)', function () {
 
     it('should pass npm test', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
-      npmTest(ctx.dir, done)
+      npmRun(ctx.dir, 'test', done)
     })
 
     it('should export an express app from app.js', function () {
@@ -1017,7 +1017,7 @@ describe('express(1)', function () {
 
     it('should pass npm test', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
-      npmTest(ctx.dir, done)
+      npmRun(ctx.dir, 'test', done)
     })
 
     describe('npm start', function () {
@@ -1045,6 +1045,133 @@ describe('express(1)', function () {
         request(this.app)
           .get('/does_not_exist')
           .expect(404, /Cannot GET \/does_not_exist/, done)
+      })
+    })
+  })
+
+  describe('--ts', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--ts'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 19)
+        done()
+      })
+    })
+
+    it('should have TypeScript files', function () {
+      ['app.ts', 'bin/www.ts', 'routes/index.ts', 'routes/users.ts', 'test/app.test.ts', 'tsconfig.json'].forEach(function (name) {
+        assert.notStrictEqual(ctx.files.indexOf(name), -1, 'should have ' + name)
+      })
+      ctx.files.forEach(function (name) {
+        assert.ok(!/\.js$/.test(name), 'should not have ' + name)
+      })
+    })
+
+    it('should import local modules with .ts extensions', function () {
+      const app = fs.readFileSync(path.resolve(ctx.dir, 'app.ts'), 'utf8')
+      const www = fs.readFileSync(path.resolve(ctx.dir, 'bin/www.ts'), 'utf8')
+      assert.ok(/from '\.\/routes\/index\.ts';/.test(app))
+      assert.ok(/from '\.\.\/app\.ts';/.test(www))
+    })
+
+    it('should have a TypeScript package.json', function () {
+      const file = path.resolve(ctx.dir, 'package.json')
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assert.strictEqual(pkg.type, 'module')
+      assert.strictEqual(pkg.engines.node, '>=22.18')
+      assert.strictEqual(pkg.scripts.start, 'node ./bin/www.ts')
+      assert.strictEqual(pkg.scripts.dev, 'node --watch ./bin/www.ts')
+      assert.strictEqual(pkg.scripts.typecheck, 'tsc')
+      assert.deepStrictEqual(Object.keys(pkg.devDependencies), [
+        '@types/express', '@types/http-errors', '@types/morgan', '@types/node', 'typescript'
+      ])
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass type checking', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'typecheck', done)
+    })
+
+    it('should pass npm test', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'test', done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should respond to HTTP request', function (done) {
+        request(this.app)
+          .get('/')
+          .expect(200, /<title>Express<\/title>/, done)
+      })
+
+      it('should generate a 404', function (done) {
+        request(this.app)
+          .get('/does_not_exist')
+          .expect(404, /<h1>Not Found<\/h1>/, done)
+      })
+    })
+
+    describe('with all middleware', function () {
+      const ctx0 = setupTestEnvironment('ts all middleware')
+
+      it('should create basic app', function (done) {
+        run(ctx0.dir, ['--ts', '--helmet', '--compression', '--cookies', '--view', 'ejs'], function (err, stdout) {
+          if (err) return done(err)
+          ctx0.files = utils.parseCreatedFiles(stdout, ctx0.dir)
+          done()
+        })
+      })
+
+      it('should add types for the middleware', function () {
+        const file = path.resolve(ctx0.dir, 'package.json')
+        const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+        assert.strictEqual(typeof pkg.devDependencies['@types/compression'], 'string')
+        assert.strictEqual(typeof pkg.devDependencies['@types/cookie-parser'], 'string')
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx0.dir, done)
+      })
+
+      it('should pass type checking', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx0.dir, 'typecheck', done)
+      })
+    })
+
+    describe('with --cjs', function () {
+      const ctx1 = setupTestEnvironment('ts with cjs')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx1.dir, ['--ts', '--cjs'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--ts' cannot be used with `--cjs'/.test(stderr))
+          done()
+        })
       })
     })
   })
@@ -1402,10 +1529,10 @@ function npmInstall (dir, callback) {
   })
 }
 
-function npmTest (dir, callback) {
+function npmRun (dir, script, callback) {
   const env = utils.childEnvironment()
 
-  exec('npm test', { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stdout, stderr) {
+  exec('npm run ' + script, { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stdout, stderr) {
     if (err) {
       err.message += stdout + stderr
       callback(err)

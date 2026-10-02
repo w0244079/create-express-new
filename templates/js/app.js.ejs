@@ -3,6 +3,12 @@
 import createError from 'http-errors';
 <% } -%>
 import express from 'express';
+<% if (ts) { -%>
+import type { NextFunction, Request, Response } from 'express';
+<% if (view) { -%>
+import type { HttpError } from 'http-errors';
+<% } -%>
+<% } -%>
 import path from 'node:path';
 <% Object.keys(modules).sort().forEach(function (variable) { -%>
 import <%- variable %> from '<%- modules[variable] %>';
@@ -52,7 +58,11 @@ app.use((req, res, next) => {
 });
 
 // error handler
+<% if (ts) { -%>
+app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
 app.use((err, req, res, next) => {
+<% } -%>
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};

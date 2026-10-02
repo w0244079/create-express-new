@@ -1,8 +1,12 @@
 <% if (esm) { -%>
 import assert from 'node:assert';
 import { once } from 'node:events';
+<% if (ts) { -%>
+import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+<% } -%>
 import { after, before, describe, it } from 'node:test';
-import app from '../app.js';
+import app from '../app.<%- ext %>';
 <% } else { -%>
 const assert = require('node:assert');
 const { once } = require('node:events');
@@ -11,14 +15,23 @@ const app = require('../app.js');
 <% } -%>
 
 describe('app', () => {
+<% if (ts) { -%>
+  let server: Server;
+  let baseUrl: string;
+<% } else { -%>
   let server;
   let baseUrl;
+<% } -%>
 
   before(async () => {
     // listen on a random free port
     server = app.listen(0);
     await once(server, 'listening');
+<% if (ts) { -%>
+    baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
+<% } else { -%>
     baseUrl = `http://localhost:${server.address().port}`;
+<% } -%>
   });
 
   after(() => {

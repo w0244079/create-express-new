@@ -43,6 +43,10 @@ $ npm start
 
 Generated apps are ES modules (`"type": "module"`) built on Express 5, and require Node.js 22 or newer.
 Use `--cjs` to generate CommonJS modules (`require()` / `module.exports`) instead.
+
+Use `--ts` to generate TypeScript. Node.js 22.18+ runs the `.ts` files directly by
+[stripping types](https://nodejs.org/api/typescript.html#type-stripping), so there is no build step;
+run `npm run typecheck` to check types with `tsc`. `--ts` cannot be combined with `--cjs`.
 When a stylesheet engine is chosen, the stylesheets are compiled by the app's `build:css` script, which runs automatically before `npm start`.
 
 During development, run the app with automatic restarts (and stylesheet recompiling, when a stylesheet engine is chosen):
@@ -66,6 +70,7 @@ This generator can also be further configured with the following command line fl
         --no-view        use static html instead of view engine
     -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)
         --cjs            generate CommonJS modules instead of ES modules
+        --ts             generate TypeScript, run directly by Node.js
         --helmet         add helmet middleware for security headers
         --compression    add compression middleware for gzip/brotli responses
         --cookies        add cookie-parser middleware
