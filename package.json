@@ -1,6 +1,6 @@
 {
-  "name": "express-generator-modern",
-  "description": "Express 5 application generator: ESM, TypeScript and CommonJS app templates. A modern fork of express-generator.",
+  "name": "create-express-new",
+  "description": "Express 5 application generator: ESM, TypeScript and CommonJS app templates. A modern successor to express-generator.",
   "version": "5.0.0",
   "author": "Michael Caines",
   "contributors": [
@@ -33,7 +33,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "express-generator-modern": "./bin/express-cli.js",
+    "create-express-new": "./bin/express-cli.js",
     "express": "./bin/express-cli.js"
   },
   "preferGlobal": true,

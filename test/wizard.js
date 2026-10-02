@@ -41,7 +41,7 @@ describe('wizard', function () {
         ts: false,
         view: 'pug'
       })
-      assert.ok(result.output.includes('npx express-generator-modern my-app'))
+      assert.ok(result.output.includes('npm create express-new@latest my-app'))
     })
   })
 
@@ -73,7 +73,7 @@ describe('wizard', function () {
       assert.strictEqual(options.git, false)
       assert.strictEqual(options.install, false)
       assert.ok(!result.output.includes('View engine'), 'should not ask for a view engine')
-      assert.ok(result.output.includes('npx express-generator-modern my-api --api --ts --helmet --cookies --cors --docker --lint --no-git'))
+      assert.ok(result.output.includes('npm create express-new@latest my-api -- --api --ts --helmet --cookies --cors --docker --lint --no-git'))
     })
   })
 
@@ -83,7 +83,7 @@ describe('wizard', function () {
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.view, 'ejs')
       assert.strictEqual(result.options.cjs, true)
-      assert.ok(result.output.includes('npx express-generator-modern web --view=ejs --cjs'))
+      assert.ok(result.output.includes('npm create express-new@latest web -- --view=ejs --cjs'))
     })
   })
 
@@ -106,7 +106,7 @@ describe('wizard', function () {
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['busy'])
       assert.strictEqual(result.options.force, true)
-      assert.ok(result.output.includes('npx express-generator-modern busy --force'))
+      assert.ok(result.output.includes('npm create express-new@latest busy -- --force'))
     })
   })
 
@@ -116,7 +116,7 @@ describe('wizard', function () {
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.api, true)
       assert.strictEqual(result.options.view, false)
-      assert.ok(result.output.includes('npx express-generator-modern my-app --api'))
+      assert.ok(result.output.includes('npm create express-new@latest my-app -- --api'))
     })
   })
 
@@ -294,23 +294,23 @@ describe('toCommand', function () {
   }
 
   it('should omit the default view engine', function () {
-    assert.strictEqual(toCommand(options()), 'npx express-generator-modern app')
+    assert.strictEqual(toCommand(options()), 'npm create express-new@latest app')
   })
 
   it('should include a view engine or --no-view', function () {
-    assert.strictEqual(toCommand(options({ view: 'twig' })), 'npx express-generator-modern app --view=twig')
-    assert.strictEqual(toCommand(options({ view: false })), 'npx express-generator-modern app --no-view')
+    assert.strictEqual(toCommand(options({ view: 'twig' })), 'npm create express-new@latest app -- --view=twig')
+    assert.strictEqual(toCommand(options({ view: false })), 'npm create express-new@latest app -- --no-view')
   })
 
   it('should prefer --api over the view', function () {
-    assert.strictEqual(toCommand(options({ api: true, view: false })), 'npx express-generator-modern app --api')
+    assert.strictEqual(toCommand(options({ api: true, view: false })), 'npm create express-new@latest app -- --api')
   })
 
   it('should include --no-git without a .gitignore', function () {
-    assert.strictEqual(toCommand(options({ git: false })), 'npx express-generator-modern app --no-git')
+    assert.strictEqual(toCommand(options({ git: false })), 'npm create express-new@latest app -- --no-git')
   })
 
   it('should quote directories with spaces', function () {
-    assert.strictEqual(toCommand(options({ _: ['my app'] })), 'npx express-generator-modern "my app"')
+    assert.strictEqual(toCommand(options({ _: ['my app'] })), 'npm create express-new@latest "my app"')
   })
 })

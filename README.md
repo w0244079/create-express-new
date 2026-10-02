@@ -1,4 +1,4 @@
-# express-generator-modern
+# create-express-new
 
 An application generator for [Express 5](https://expressjs.com/), creating web apps or JSON APIs
 as ES modules, TypeScript or CommonJS that run on current Node.js with no build step.
@@ -6,7 +6,7 @@ as ES modules, TypeScript or CommonJS that run on current Node.js with no build 
 [![NPM Version][npm-image]][npm-url]
 [![CI][github-actions-ci-image]][github-actions-ci-url]
 
-`express-generator-modern` is a fork of [`express-generator`](https://github.com/expressjs/generator),
+`create-express-new` is a fork of [`express-generator`](https://github.com/expressjs/generator),
 the original Express application generator, reimagined for today's Express apps. It keeps the
 familiar `express` command and project layout, and updates everything it generates for Express 5
 and modern Node.js. It is not affiliated with or endorsed by the Express project.
@@ -16,7 +16,7 @@ and modern Node.js. It is not affiliated with or endorsed by the Express project
 Run the generator with no arguments to be guided through the options (requires Node.js 22.9 or newer):
 
 ```bash
-$ npx express-generator-modern
+$ npm create express-new@latest
 ```
 
 The wizard asks for the project directory, whether you are building a web app or a JSON API, the
@@ -25,10 +25,11 @@ Dockerfile and ESLint) and a `.gitignore`.
 Press Esc (or ←) to go back to the previous question; your earlier answers are kept. It then shows the
 equivalent command, so you can repeat the setup or use it in scripts, and offers to run `npm install`.
 
-Or pass the options directly:
+Or pass the directory and options directly. `npm create` passes the options after `--` on to the
+generator (`npx create-express-new my-app --ts --helmet` works too, without the `--`):
 
 ```bash
-$ npx express-generator-modern my-app
+$ npm create express-new@latest my-app -- --ts --helmet
 $ cd my-app
 $ npm install
 ```
@@ -49,7 +50,7 @@ $ npm test
 You can also install the generator globally, which provides the `express` command:
 
 ```bash
-$ npm install -g express-generator-modern
+$ npm install -g create-express-new
 $ express --view=ejs --helmet my-app
 ```
 
@@ -217,7 +218,7 @@ This fork started from `express-generator` 4.16.1.
 
 ### Migrating commands
 
-| express-generator | express-generator-modern |
+| express-generator | create-express-new |
 | --- | --- |
 | `express --ejs` | `express --view=ejs` |
 | `express --hbs` | `express --view=hbs` |
@@ -267,7 +268,7 @@ workflow runs the check monthly.
 
 [MIT](LICENSE). Originally created by TJ Holowaychuk and the Express contributors.
 
-[npm-image]: https://img.shields.io/npm/v/express-generator-modern.svg
-[npm-url]: https://www.npmjs.com/package/express-generator-modern
+[npm-image]: https://img.shields.io/npm/v/create-express-new.svg
+[npm-url]: https://www.npmjs.com/package/create-express-new
 [github-actions-ci-image]: https://github.com/w0244079/generator/actions/workflows/ci.yml/badge.svg
 [github-actions-ci-url]: https://github.com/w0244079/generator/actions/workflows/ci.yml

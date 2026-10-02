@@ -665,7 +665,8 @@ function sortedObject (obj) {
 
 function usage () {
   console.log('')
-  console.log('  Usage: express-generator-modern [options] [dir]')
+  console.log('  Usage: npm create express-new@latest [dir] -- [options]')
+  console.log('         npx create-express-new [options] [dir]')
   console.log('         express [options] [dir]   (when installed globally)')
   console.log('')
   console.log('  Run without arguments in a terminal to choose the options interactively.')
