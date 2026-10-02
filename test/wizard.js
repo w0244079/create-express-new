@@ -2,12 +2,14 @@ import assert from 'node:assert'
 import fs from 'node:fs'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { CancelError } from '../lib/prompts.js'
+import { CancelError, rows } from '../lib/prompts.js'
 import { toCommand, wizard } from '../lib/wizard.js'
 import * as utils from './support/utils.js'
 
 const DOWN = '\x1b[B'
 const ENTER = '\r'
+const ESC = '\x1b'
+const LEFT = '\x1b[D'
 
 describe('wizard', function () {
   let cwd
@@ -108,6 +110,73 @@ describe('wizard', function () {
     })
   })
 
+  it('should go back to change the kind of app, skipping the view engine', function () {
+    const keys = [ENTER, ENTER, LEFT, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.api, true)
+      assert.strictEqual(result.options.view, false)
+      assert.ok(result.output.includes('npx express-generator-modern my-app --api'))
+    })
+  })
+
+  it('should keep answers when going back', function () {
+    const keys = [ENTER, ENTER, ENTER, ENTER, ' ', ENTER, LEFT, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.helmet, true)
+    })
+  })
+
+  it('should go back from the summary to change an answer', function () {
+    const keys = [ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, LEFT, 'n', ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.install, false)
+    })
+  })
+
+  it('should go back with Esc, keeping the typed directory', function () {
+    const keys = ['x', ENTER, ESC, 200, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.deepStrictEqual(result.options._, ['xy'])
+    })
+  })
+
+  it('should not go back from the first question', function () {
+    const keys = [ESC, 200, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.deepStrictEqual(result.options._, ['my-app'])
+    })
+  })
+
+  it('should leave out hints that do not fit a narrow terminal', function () {
+    return Promise.all([
+      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 40 }),
+      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 120 })
+    ]).then(function ([narrow, wide]) {
+      // the Language hints are too long for 40 columns, the app kind hints fit
+      assert.ok(!narrow.output.includes('runs directly on Node.js'))
+      assert.ok(narrow.output.includes('server-rendered views'))
+      assert.ok(!narrow.output.includes('create an Express 5 app'))
+      assert.ok(wide.output.includes('runs directly on Node.js'))
+      assert.ok(wide.output.includes('create an Express 5 app'))
+    })
+  })
+
+  it('should redraw wrapped lines in a narrow terminal', function () {
+    const name = 'a'.repeat(20)
+    const keys = [...name, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys, { columns: 40 }).then(function (result) {
+      assert.deepStrictEqual(result.options._, [name])
+      // the prompt wraps onto two rows, so redrawing moves up two rows
+      assert.ok(result.raw.includes('\x1b[2A\r'))
+    })
+  })
+
   it('should cancel on Ctrl+C', function () {
     return answer([ENTER, '\x03']).then(function () {
       throw new Error('expected the wizard to be cancelled')
@@ -124,10 +193,13 @@ describe('wizard', function () {
     })
   })
 
-  function answer (keys) {
+  // type the keys, pausing for numbers (in ms), into a terminal `columns` wide
+  function answer (keys, { columns } = {}) {
     const input = new PassThrough()
     const output = new PassThrough()
     let text = ''
+
+    output.columns = columns
 
     output.setEncoding('utf8')
     output.on('data', function (str) {
@@ -138,19 +210,45 @@ describe('wizard', function () {
 
     // type one key at a time, as a person would
     let i = 0
-    const timer = setInterval(function () {
-      if (i < keys.length) input.write(keys[i++])
-      else clearInterval(timer)
-    }, 5)
+    let timer = null
+
+    function next () {
+      if (i >= keys.length) return
+      const key = keys[i++]
+
+      if (typeof key === 'number') {
+        timer = setTimeout(next, key)
+      } else {
+        input.write(key)
+        timer = setTimeout(next, 5)
+      }
+    }
+
+    next()
 
     return result.then(function (options) {
-      clearInterval(timer)
-      return { options, output: utils.stripAnsi(text) }
+      clearTimeout(timer)
+      return { options, output: utils.stripAnsi(text), raw: text }
     }, function (err) {
-      clearInterval(timer)
+      clearTimeout(timer)
       throw err
     })
   }
+})
+
+describe('rows', function () {
+  it('should count lines', function () {
+    assert.strictEqual(rows('one\ntwo'), 2)
+  })
+
+  it('should count wrapped lines', function () {
+    assert.strictEqual(rows('x'.repeat(25), 10), 3)
+    assert.strictEqual(rows('x'.repeat(10), 10), 1)
+  })
+
+  it('should ignore ANSI escape codes', function () {
+    assert.strictEqual(rows('\x1b[36m' + 'x'.repeat(10) + '\x1b[39m', 10), 1)
+  })
 })
 
 describe('toCommand', function () {

@@ -22,8 +22,8 @@ $ npx express-generator-modern
 The wizard asks for the project directory, whether you are building a web app or a JSON API, the
 view engine, the language (JavaScript, TypeScript or CommonJS), optional middleware, extras (a
 Dockerfile and ESLint) and a `.gitignore`.
-It then shows the equivalent command, so you can repeat the setup or use it in scripts, and offers to
-run `npm install`.
+Press Esc (or ←) to go back to the previous question; your earlier answers are kept. It then shows the
+equivalent command, so you can repeat the setup or use it in scripts, and offers to run `npm install`.
 
 Or pass the options directly:
 
