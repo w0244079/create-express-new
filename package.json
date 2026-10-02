@@ -49,7 +49,7 @@
     "validate-npm-package-name": "^8.0.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.9"
   },
   "files": [
     "LICENSE",

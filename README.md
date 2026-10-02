@@ -13,7 +13,7 @@ and modern Node.js. It is not affiliated with or endorsed by the Express project
 
 ## Quick Start
 
-Create an app (requires Node.js 22 or newer):
+Create an app (requires Node.js 22.9 or newer):
 
 ```bash
 $ npx express-generator-modern my-app
@@ -47,6 +47,7 @@ The original `express-generator` provides an `express` command too, so install o
 
 ```
 my-app
+├── .env.example      # example environment variables; copy to .env
 ├── app.js            # the Express app: middleware, views, routes, error handling
 ├── bin/www.js        # starts the server, with graceful shutdown on SIGINT/SIGTERM
 ├── package.json      # "type": "module", start/dev/test scripts
@@ -86,6 +87,20 @@ unless `NODE_ENV` is set, so set `NODE_ENV=production` when you deploy.
   Includes a strict `tsconfig.json`, the `@types` packages the app needs and an `npm run typecheck`
   script that runs `tsc`. `--ts` cannot be combined with `--cjs`.
 
+### Configuration
+
+`npm start` and `npm run dev` load environment variables from a `.env` file when one exists, using
+Node.js's built-in [`--env-file-if-exists`](https://nodejs.org/api/cli.html#--env-file-if-existsfile),
+so no `dotenv` package is needed. Start from the generated example:
+
+```bash
+$ cp .env.example .env
+```
+
+Variables already set in the environment take precedence over `.env`, so your hosting platform's
+settings always win. `npm run dev` restarts when `.env` changes. Keep `.env` out of version control;
+the `.gitignore` from `--git` already ignores it.
+
 ### Optional middleware
 
 By default, generated apps include only request logging, body parsing and static files (no static
@@ -118,6 +133,7 @@ This fork started from `express-generator` 4.16.1.
 
 - ES module output by default, plus `--cjs` for CommonJS and `--ts` for TypeScript
 - `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in production
+- `.env` loading in `npm start` and `npm run dev`, with a generated `.env.example`
 - `--helmet`, `--compression` and `--cookies` options for opt-in middleware
 - An `npm run dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run with `npm test`
@@ -131,7 +147,7 @@ This fork started from `express-generator` 4.16.1.
   including ejs 6, hbs 4, pug 3 and twig 3
 - The default view engine is pug (was jade)
 - `bin/www` is now `bin/www.js`, a short script built on `app.listen()`
-- Generated apps require Node.js 22 or newer (22.18 for TypeScript)
+- Generated apps require Node.js 22.9 or newer (22.18 for TypeScript)
 - The generator itself is an ES module with a single dependency (ejs), down from five
 - The confirmation prompt for non-empty directories only accepts y, yes, ok or true, and aborts
   when STDIN closes without an answer

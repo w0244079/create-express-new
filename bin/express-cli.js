@@ -126,6 +126,9 @@ function createApplication (name, dir, options, done) {
   const ext = ts ? 'ts' : 'js'
   const www = './bin/www.' + ext
 
+  // load .env, when it exists, before starting the app
+  const env = '--env-file-if-exists=.env'
+
   // Package
   const pkg = {
     name,
@@ -133,14 +136,15 @@ function createApplication (name, dir, options, done) {
     private: true,
     type: esm ? 'module' : 'commonjs',
     scripts: {
-      start: 'node ' + www,
+      start: 'node ' + env + ' ' + www,
       test: 'node --test',
       // restart the app on change
-      dev: 'node --watch ' + www
+      dev: 'node --watch ' + env + ' ' + www
     },
     engines: {
-      // TypeScript type stripping is enabled by default from Node.js 22.18
-      node: ts ? '>=22.18' : '>=22'
+      // --env-file-if-exists needs Node.js 22.9, and TypeScript type
+      // stripping is enabled by default from Node.js 22.18
+      node: ts ? '>=22.18' : '>=22.9'
     },
     dependencies: {
       express: VERSIONS.express
@@ -265,6 +269,9 @@ function createApplication (name, dir, options, done) {
   if (!api) {
     app.locals.uses.push('express.static(path.join(' + dirname + ", 'public'))")
   }
+
+  // Environment variables
+  copyTemplate('js/env.example', path.join(dir, '.env.example'))
 
   if (options.git) {
     copyTemplate('js/gitignore', path.join(dir, '.gitignore'))
