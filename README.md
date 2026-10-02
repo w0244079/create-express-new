@@ -59,6 +59,7 @@ The original `express-generator` provides an `express` command too, so install o
 ```
 my-app
 ├── .env.example      # example environment variables; copy to .env
+├── .gitignore        # ignores node_modules, .env files, logs and coverage
 ├── app.js            # the Express app: middleware, views, routes, error handling
 ├── bin/www.js        # starts the server, with graceful shutdown on SIGINT/SIGTERM
 ├── package.json      # "type": "module", start/dev/test scripts
@@ -110,7 +111,7 @@ $ cp .env.example .env
 
 Variables already set in the environment take precedence over `.env`, so your hosting platform's
 settings always win. `npm run dev` restarts when `.env` changes. Keep `.env` out of version control;
-the `.gitignore` from `--git` already ignores it.
+the generated `.gitignore` already ignores it, and every other `.env.*` file except `.env.example`.
 
 ### Optional middleware
 
@@ -131,7 +132,7 @@ files with `--api`). Add more with:
         --helmet         add helmet middleware for security headers
         --compression    add compression middleware for gzip/brotli responses
         --cookies        add cookie-parser middleware
-        --git            add .gitignore
+        --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
         --version        output the version number
     -h, --help           output usage information
@@ -146,6 +147,8 @@ This fork started from `express-generator` 4.16.1.
 - `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in production
 - `.env` loading in `npm start` and `npm run dev`, with a generated `.env.example`
 - An interactive wizard when run without arguments in a terminal, which shows the equivalent command
+- A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects
+- Request logs are skipped while the generated tests run, keeping `npm test` output readable
 - `--helmet`, `--compression` and `--cookies` options for opt-in middleware
 - An `npm run dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run with `npm test`

@@ -49,6 +49,7 @@ const OPTIONS = {
   git: { type: 'boolean' },
   helmet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
+  'no-git': { type: 'boolean' },
   'no-view': { type: 'boolean' },
   ts: { type: 'boolean' },
   version: { type: 'boolean' },
@@ -204,7 +205,7 @@ function createApplication (name, dir, options, done) {
 
   // Request logger
   app.locals.modules.logger = 'morgan'
-  app.locals.uses.push("logger('dev')")
+  app.locals.uses.push("logger('dev', {\n  // skip request logs while testing\n  skip: () => process.env.NODE_ENV === 'test'\n})")
   pkg.dependencies.morgan = VERSIONS.morgan
 
   // Body parsers
@@ -603,6 +604,9 @@ function parseOptions (argv) {
     options.view = false
   }
 
+  // a .gitignore is added unless --no-git is given
+  options.git = !options['no-git']
+
   return options
 }
 
@@ -634,7 +638,7 @@ function usage () {
   console.log('        --helmet         add helmet middleware for security headers')
   console.log('        --compression    add compression middleware for gzip/brotli responses')
   console.log('        --cookies        add cookie-parser middleware')
-  console.log('        --git            add .gitignore')
+  console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')

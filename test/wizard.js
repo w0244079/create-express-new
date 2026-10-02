@@ -36,7 +36,7 @@ describe('wizard', function () {
         ts: false,
         view: 'pug'
       })
-      assert.ok(result.output.includes('npx express-generator-modern my-app --git'))
+      assert.ok(result.output.includes('npx express-generator-modern my-app'))
     })
   })
 
@@ -64,7 +64,7 @@ describe('wizard', function () {
       assert.strictEqual(options.git, false)
       assert.strictEqual(options.install, false)
       assert.ok(!result.output.includes('View engine'), 'should not ask for a view engine')
-      assert.ok(result.output.includes('npx express-generator-modern my-api --api --ts --helmet --cookies'))
+      assert.ok(result.output.includes('npx express-generator-modern my-api --api --ts --helmet --cookies --no-git'))
     })
   })
 
@@ -74,7 +74,7 @@ describe('wizard', function () {
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.view, 'ejs')
       assert.strictEqual(result.options.cjs, true)
-      assert.ok(result.output.includes('npx express-generator-modern web --view=ejs --cjs --git'))
+      assert.ok(result.output.includes('npx express-generator-modern web --view=ejs --cjs'))
     })
   })
 
@@ -97,7 +97,7 @@ describe('wizard', function () {
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['busy'])
       assert.strictEqual(result.options.force, true)
-      assert.ok(result.output.includes('npx express-generator-modern busy --git --force'))
+      assert.ok(result.output.includes('npx express-generator-modern busy --force'))
     })
   })
 
@@ -148,7 +148,7 @@ describe('wizard', function () {
 
 describe('toCommand', function () {
   function options (extra) {
-    return Object.assign({ _: ['app'], view: 'pug' }, extra)
+    return Object.assign({ _: ['app'], git: true, view: 'pug' }, extra)
   }
 
   it('should omit the default view engine', function () {
@@ -162,6 +162,10 @@ describe('toCommand', function () {
 
   it('should prefer --api over the view', function () {
     assert.strictEqual(toCommand(options({ api: true, view: false })), 'npx express-generator-modern app --api')
+  })
+
+  it('should include --no-git without a .gitignore', function () {
+    assert.strictEqual(toCommand(options({ git: false })), 'npx express-generator-modern app --no-git')
   })
 
   it('should quote directories with spaces', function () {

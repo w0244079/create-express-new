@@ -32,7 +32,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stdout = stdout
         ctx.warnings = warnings
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -57,6 +57,7 @@ describe('express(1)', function () {
       assert.notStrictEqual(ctx.files.indexOf('package.json'), -1)
       assert.notStrictEqual(ctx.files.indexOf('test/app.test.js'), -1)
       assert.notStrictEqual(ctx.files.indexOf('.env.example'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('.gitignore'), -1)
     })
 
     it('should have pug templates', function () {
@@ -143,7 +144,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx0.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 19)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 20)
           done()
         })
       })
@@ -163,7 +164,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx1.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 19)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 20)
           done()
         })
       })
@@ -218,7 +219,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stderr = stderr
         ctx.stdout = stdout
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         done()
       })
     })
@@ -296,7 +297,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--api'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 10)
+        assert.strictEqual(ctx.files.length, 11)
         done()
       })
     })
@@ -415,7 +416,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cjs'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -502,7 +503,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--compression'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -556,7 +557,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cookies'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -594,32 +595,27 @@ describe('express(1)', function () {
     })
   })
 
-  describe('--git', function () {
+  describe('--no-git', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
-    it('should create basic app with git files', function (done) {
-      run(ctx.dir, ['--git'], function (err, stdout) {
+    it('should create basic app without .gitignore', function (done) {
+      run(ctx.dir, ['--no-git'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 20, 'should have 20 files')
+        assert.strictEqual(ctx.files.length, 19, 'should have 19 files')
+        assert.strictEqual(ctx.files.indexOf('.gitignore'), -1, 'should not have .gitignore file')
         done()
       })
     })
 
-    it('should have basic files', function () {
-      assert.notStrictEqual(ctx.files.indexOf('bin/www.js'), -1, 'should have bin/www.js file')
-      assert.notStrictEqual(ctx.files.indexOf('app.js'), -1, 'should have app.js file')
-      assert.notStrictEqual(ctx.files.indexOf('package.json'), -1, 'should have package.json file')
-    })
-
-    it('should have .gitignore', function () {
-      assert.notStrictEqual(ctx.files.indexOf('.gitignore'), -1, 'should have .gitignore file')
-    })
-
-    it('should have pug templates', function () {
-      assert.notStrictEqual(ctx.files.indexOf('views/error.pug'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('views/index.pug'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('views/layout.pug'), -1)
+    it('should still accept --git', function (done) {
+      const dir = path.join(ctx.dir, 'with-git')
+      fs.mkdirSync(dir)
+      run(dir, ['--git'], function (err, stdout) {
+        if (err) return done(err)
+        assert.notStrictEqual(utils.parseCreatedFiles(stdout, dir).indexOf('.gitignore'), -1)
+        done()
+      })
     })
   })
 
@@ -630,7 +626,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--helmet'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -735,7 +731,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--no-view'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
+        assert.strictEqual(ctx.files.length, 17)
         done()
       })
     })
@@ -796,7 +792,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--ts'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         done()
       })
     })
@@ -1001,7 +997,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'ejs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
+          assert.strictEqual(ctx.files.length, 19, 'should have 19 files')
           done()
         })
       })
@@ -1065,7 +1061,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'hbs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 19)
+          assert.strictEqual(ctx.files.length, 20)
           done()
         })
       })
@@ -1130,7 +1126,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'pug'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 19)
+          assert.strictEqual(ctx.files.length, 20)
           done()
         })
       })
@@ -1195,7 +1191,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'twig'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 19)
+          assert.strictEqual(ctx.files.length, 20)
           done()
         })
       })
