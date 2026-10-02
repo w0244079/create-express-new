@@ -51,6 +51,12 @@ During development, run the app with automatic restarts (and stylesheet recompil
 $ npm run dev
 ```
 
+Run the app's tests, written with the built-in [`node:test`](https://nodejs.org/api/test.html) runner:
+
+```bash
+$ npm test
+```
+
 ## Command Line Options
 
 This generator can also be further configured with the following command line flags.

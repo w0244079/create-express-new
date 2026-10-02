@@ -142,7 +142,8 @@ function createApplication (name, dir, options, done) {
     private: true,
     type: esm ? 'module' : 'commonjs',
     scripts: {
-      start: 'node ./bin/www.js'
+      start: 'node ./bin/www.js',
+      test: 'node --test'
     },
     engines: {
       node: '>=22'
@@ -235,6 +236,12 @@ function createApplication (name, dir, options, done) {
     router.locals.esm = esm
     write(path.join(dir, 'routes', route + '.js'), router.render())
   }
+
+  // copy test templates
+  mkdir(dir, 'test')
+  const test = loadTemplate('js/test/app.test.js')
+  test.locals.esm = esm
+  write(path.join(dir, 'test/app.test.js'), test.render())
 
   // Index router mount
   app.locals.localModules.indexRouter = './routes/index.js'

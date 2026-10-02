@@ -31,7 +31,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stdout = stdout
         ctx.warnings = warnings
-        assert.strictEqual(ctx.files.length, 16)
+        assert.strictEqual(ctx.files.length, 18)
         done()
       })
     })
@@ -50,6 +50,7 @@ describe('express(1)', function () {
       assert.notStrictEqual(ctx.files.indexOf('bin/www.js'), -1)
       assert.notStrictEqual(ctx.files.indexOf('app.js'), -1)
       assert.notStrictEqual(ctx.files.indexOf('package.json'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('test/app.test.js'), -1)
     })
 
     it('should have pug templates', function () {
@@ -68,6 +69,7 @@ describe('express(1)', function () {
         '  "type": "module",\n' +
         '  "scripts": {\n' +
         '    "start": "node ./bin/www.js",\n' +
+        '    "test": "node --test",\n' +
         '    "dev": "node --watch ./bin/www.js"\n' +
         '  },\n' +
         '  "engines": {\n' +
@@ -85,6 +87,11 @@ describe('express(1)', function () {
     it('should have installable dependencies', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
       npmInstall(ctx.dir, done)
+    })
+
+    it('should pass npm test', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmTest(ctx.dir, done)
     })
 
     it('should export an express app from app.js', function () {
@@ -130,7 +137,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx0.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 16)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 18)
           done()
         })
       })
@@ -150,7 +157,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx1.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 16)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 18)
           done()
         })
       })
@@ -205,7 +212,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stderr = stderr
         ctx.stdout = stdout
-        assert.strictEqual(ctx.files.length, 17)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -283,7 +290,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cjs'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
+        assert.strictEqual(ctx.files.length, 18)
         done()
       })
     })
@@ -294,6 +301,7 @@ describe('express(1)', function () {
       assert.notStrictEqual(ctx.files.indexOf('package.json'), -1)
       assert.notStrictEqual(ctx.files.indexOf('routes/index.js'), -1)
       assert.notStrictEqual(ctx.files.indexOf('routes/users.js'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('test/app.test.js'), -1)
     })
 
     it('should be a CommonJS package', function () {
@@ -303,7 +311,7 @@ describe('express(1)', function () {
     })
 
     it('should use require instead of import', function () {
-      ['app.js', 'bin/www.js', 'routes/index.js', 'routes/users.js'].forEach(function (name) {
+      ['app.js', 'bin/www.js', 'routes/index.js', 'routes/users.js', 'test/app.test.js'].forEach(function (name) {
         const contents = fs.readFileSync(path.resolve(ctx.dir, name), 'utf8')
         assert.ok(/require\(/.test(contents), name + ' should use require')
         assert.ok(!/^(import|export) /m.test(contents), name + ' should not use import/export')
@@ -314,6 +322,11 @@ describe('express(1)', function () {
     it('should have installable dependencies', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
       npmInstall(ctx.dir, done)
+    })
+
+    it('should pass npm test', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmTest(ctx.dir, done)
     })
 
     it('should export an express app from app.js', function () {
@@ -364,7 +377,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--compression'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
+        assert.strictEqual(ctx.files.length, 18)
         done()
       })
     })
@@ -418,7 +431,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cookies'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
+        assert.strictEqual(ctx.files.length, 18)
         done()
       })
     })
@@ -494,7 +507,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--css', 'less'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16, 'should have 16 files')
+          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
           done()
         })
       })
@@ -574,7 +587,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--css', 'sass'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16, 'should have 16 files')
+          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
           done()
         })
       })
@@ -654,7 +667,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--css', 'scss'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16, 'should have 16 files')
+          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
           done()
         })
       })
@@ -767,7 +780,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--css', 'stylus'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16, 'should have 16 files')
+          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
           done()
         })
       })
@@ -848,7 +861,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--git'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 17, 'should have 17 files')
+        assert.strictEqual(ctx.files.length, 19, 'should have 19 files')
         done()
       })
     })
@@ -877,7 +890,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--helmet'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
+        assert.strictEqual(ctx.files.length, 18)
         done()
       })
     })
@@ -982,7 +995,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--no-view'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 13)
+        assert.strictEqual(ctx.files.length, 15)
         done()
       })
     })
@@ -1000,6 +1013,11 @@ describe('express(1)', function () {
     it('should have installable dependencies', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
       npmInstall(ctx.dir, done)
+    })
+
+    it('should pass npm test', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmTest(ctx.dir, done)
     })
 
     describe('npm start', function () {
@@ -1116,7 +1134,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'ejs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 15, 'should have 15 files')
+          assert.strictEqual(ctx.files.length, 17, 'should have 17 files')
           done()
         })
       })
@@ -1180,7 +1198,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'hbs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16)
+          assert.strictEqual(ctx.files.length, 18)
           done()
         })
       })
@@ -1245,7 +1263,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'pug'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16)
+          assert.strictEqual(ctx.files.length, 18)
           done()
         })
       })
@@ -1310,7 +1328,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'twig'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 16)
+          assert.strictEqual(ctx.files.length, 18)
           done()
         })
       })
@@ -1376,6 +1394,20 @@ function npmInstall (dir, callback) {
   exec('npm install --prefer-offline --no-audit --no-fund', { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stderr) {
     if (err) {
       err.message += stderr
+      callback(err)
+      return
+    }
+
+    callback()
+  })
+}
+
+function npmTest (dir, callback) {
+  const env = utils.childEnvironment()
+
+  exec('npm test', { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stdout, stderr) {
+    if (err) {
+      err.message += stdout + stderr
       callback(err)
       return
     }

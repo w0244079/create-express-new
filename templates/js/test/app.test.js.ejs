@@ -1,0 +1,43 @@
+<% if (esm) { -%>
+import assert from 'node:assert';
+import { once } from 'node:events';
+import { after, before, describe, it } from 'node:test';
+import app from '../app.js';
+<% } else { -%>
+const assert = require('node:assert');
+const { once } = require('node:events');
+const { after, before, describe, it } = require('node:test');
+const app = require('../app.js');
+<% } -%>
+
+describe('app', () => {
+  let server;
+  let baseUrl;
+
+  before(async () => {
+    // listen on a random free port
+    server = app.listen(0);
+    await once(server, 'listening');
+    baseUrl = `http://localhost:${server.address().port}`;
+  });
+
+  after(() => {
+    server.close();
+  });
+
+  it('responds to GET /', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.status, 200);
+  });
+
+  it('responds to GET /users', async () => {
+    const res = await fetch(`${baseUrl}/users`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(await res.text(), 'respond with a resource');
+  });
+
+  it('responds with 404 for unknown routes', async () => {
+    const res = await fetch(`${baseUrl}/does-not-exist`);
+    assert.strictEqual(res.status, 404);
+  });
+});
