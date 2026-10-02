@@ -1,0 +1,49 @@
+name: publish
+
+# Publish to npm when a GitHub release is published. Uses npm trusted
+# publishing, so no npm token is stored and each version gets provenance.
+# Set it up once on npmjs.com, after the first manual publish: the package's
+# Settings > Trusted Publisher > GitHub Actions, with this repository and the
+# workflow file publish.yml.
+
+on:
+  release:
+    types:
+    - published
+
+permissions:
+  contents: read
+  # lets npm verify that this workflow is publishing
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Install Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 24
+        registry-url: https://registry.npmjs.org
+
+    - name: Check the release tag matches the package version
+      run: |
+        version="v$(node -p 'require("./package.json").version')"
+        if [ "$version" != "$GITHUB_REF_NAME" ]; then
+          echo "release tag $GITHUB_REF_NAME does not match package.json $version"
+          exit 1
+        fi
+
+    # trusted publishing needs npm 11.5.1 or newer
+    - name: Update npm
+      run: npm install -g npm@11
+
+    - name: Install Node.js dependencies
+      run: npm install
+
+    # runs lint and the tests first (prepublishOnly)
+    - name: Publish
+      run: npm publish

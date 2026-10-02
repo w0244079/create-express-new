@@ -264,6 +264,20 @@ such as TypeScript 6 for `--ts --lint`, is reported as ready to lift once the na
 supports the newer version, for example when typescript-eslint supports TypeScript 7. The `versions`
 workflow runs the check monthly.
 
+### Releasing
+
+Releases are published to npm by the `publish` workflow when a GitHub release is published, using
+[npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is needed.
+
+1. Move the `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version and date
+2. Bump the version without tagging yet: `npm version <major|minor|patch> --no-git-tag-version`
+3. Commit both, then tag and push: `git tag vX.Y.Z && git push origin HEAD vX.Y.Z`
+4. Publish a GitHub release for the tag, with the changelog entry as its notes:
+   `gh release create vX.Y.Z --title vX.Y.Z --notes-file <file>`
+
+The workflow checks that the tag matches `package.json`, then runs lint and the tests before
+publishing.
+
 ## License
 
 [MIT](LICENSE). Originally created by TJ Holowaychuk and the Express contributors.

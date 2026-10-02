@@ -1,8 +1,8 @@
 {
   "name": "create-express-new",
   "description": "Express 5 application generator: ESM, TypeScript and CommonJS app templates. A modern successor to express-generator.",
-  "version": "5.0.0",
-  "author": "Michael Caines",
+  "version": "1.0.0",
+  "author": "Michael Caines (https://github.com/w0244079)",
   "contributors": [
     "TJ Holowaychuk <tj@vision-media.ca>",
     "Aaron Heckmann <aaron.heckmann+github@gmail.com>",
@@ -36,7 +36,6 @@
     "create-express-new": "./bin/express-cli.js",
     "express": "./bin/express-cli.js"
   },
-  "preferGlobal": true,
   "dependencies": {
     "ejs": "^6.0.1"
   },
@@ -52,15 +51,17 @@
     "node": ">=22.9"
   },
   "files": [
+    "CHANGELOG.md",
     "LICENSE",
     "bin/",
-    "templates/",
-    "lib/"
+    "lib/",
+    "templates/"
   ],
   "scripts": {
     "lint": "eslint .",
     "test": "mocha --reporter spec --bail --check-leaks test/",
     "test-ci": "mocha --reporter spec --check-leaks test/",
-    "versions": "node scripts/versions.js"
+    "versions": "node scripts/versions.js",
+    "prepublishOnly": "npm run lint && npm run test-ci"
   }
 }
