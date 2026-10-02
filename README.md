@@ -127,7 +127,8 @@ files with `--api`). Add more with:
 - `--compression`: gzip/brotli response [compression](https://github.com/expressjs/compression)
 - `--cookies`: [cookie-parser](https://github.com/expressjs/cookie-parser), for reading `req.cookies`
 - `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins. Any origin is
-  allowed by default; set `CORS_ORIGIN` (see `.env.example`) to allow only your front end.
+  allowed by default; set `CORS_ORIGIN` (see `.env.example`) to a comma-separated list of origins to
+  allow only your front ends.
 
 ### Docker
 
@@ -140,7 +141,8 @@ $ docker build -t my-app .
 $ docker run -p 3000:3000 my-app
 ```
 
-The image is based on `node:24-slim`, installs only production dependencies, runs the app as the
+The image is based on `node:22-slim`, the latest release of the minimum supported Node.js version, and
+installs only production dependencies. It runs the app as the
 unprivileged `node` user with `NODE_ENV=production`, checks `/health` with a `HEALTHCHECK`, and runs
 `node` directly so it receives `SIGTERM` and shuts down gracefully. `.env` files are not copied into the
 image; set environment variables with your container platform instead.
@@ -255,7 +257,10 @@ $ npm run versions -- --update  # raise each version to the newest release in it
 ```
 
 New major versions are reported but never applied automatically; review the templates before changing the range.
-Packages listed under `hold` are intentionally kept on an older major. The `versions` workflow runs the check monthly.
+Packages listed under `hold` are intentionally kept on an older major. A hold with an `until` condition,
+such as TypeScript 6 for `--ts --lint`, is reported as ready to lift once the named package's latest release
+supports the newer version, for example when typescript-eslint supports TypeScript 7. The `versions`
+workflow runs the check monthly.
 
 ## License
 

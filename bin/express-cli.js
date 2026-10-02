@@ -211,7 +211,7 @@ function createApplication (name, dir, options, done) {
   // Cross-origin requests
   if (options.cors) {
     app.locals.modules.cors = 'cors'
-    app.locals.uses.push("cors({ origin: process.env.CORS_ORIGIN || '*' })")
+    app.locals.uses.push("cors({\n  // any origin, or only the comma-separated origins in CORS_ORIGIN\n  origin: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()) ?? '*'\n})")
     pkg.dependencies.cors = VERSIONS.cors
   }
 

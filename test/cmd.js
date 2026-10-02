@@ -730,7 +730,8 @@ describe('express(1)', function () {
       const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
       assert.strictEqual(typeof pkg.dependencies.cors, 'string')
       assert.ok(/^import cors from 'cors';$/m.test(contents))
-      assert.ok(/^app\.use\(cors\(\{ origin: process\.env\.CORS_ORIGIN \|\| '\*' \}\)\);$/m.test(contents))
+      assert.ok(/^app\.use\(cors\(\{$/m.test(contents))
+      assert.ok(/^ {2}origin: process\.env\.CORS_ORIGIN\?\.split\(','\)/m.test(contents))
     })
 
     it('should document CORS_ORIGIN in .env.example', function () {
@@ -787,6 +788,7 @@ describe('express(1)', function () {
 
     it('should run the app as the node user with a health check', function () {
       const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
+      assert.ok(/^FROM node:22-slim$/m.test(contents))
       assert.ok(/^RUN npm ci --omit=dev$/m.test(contents))
       assert.ok(/^COPY --chown=node:node \. \.$/m.test(contents))
       assert.ok(/^USER node$/m.test(contents))

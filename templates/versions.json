@@ -27,6 +27,13 @@
   },
   "hold": {
     "@types/node": "kept on the major of the minimum supported Node.js version (22)",
-    "typescript@6": "used with --ts --lint until typescript-eslint supports TypeScript 7"
+    "typescript@6": {
+      "reason": "used with --ts --lint until typescript-eslint supports TypeScript 7",
+      "until": {
+        "package": "typescript-eslint",
+        "peer": "typescript",
+        "supports": "7.0.0"
+      }
+    }
   }
 }

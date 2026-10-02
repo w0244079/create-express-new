@@ -7,6 +7,11 @@
 // New major versions are only reported, as they need a manual review of the
 // generated templates before the range in templates/versions.json is changed.
 // An entry named `<package>@<major>` pins that package to that major.
+//
+// Entries under `hold` are kept on an older major, with a reason. A hold with
+// an `until` condition is reported as ready to lift once the latest release
+// of `until.package` has a `until.peer` peer dependency range that includes
+// `until.supports`.
 
 import { exec } from 'node:child_process'
 import fs from 'node:fs'
@@ -62,10 +67,25 @@ for (const r of results) {
     status += `; new major ${r.latest} needs review`
     drift = true
   } else if (r.held) {
-    status += `; held (${hold[r.name]}), latest is ${r.latest}`
+    status += `; held (${reason(hold[r.name])}), latest is ${r.latest}`
   }
 
   console.log(`${r.name.padEnd(24)} ${r.range.padEnd(10)} ${status}`)
+}
+
+// holds that can be lifted
+for (const [name, entry] of Object.entries(hold)) {
+  if (!entry.until) continue
+
+  const { package: pkg, peer, supports } = entry.until
+  const { stdout } = await run(`npm view ${pkg} version peerDependencies --json`)
+  const info = JSON.parse(stdout)
+  const range = (info.peerDependencies || {})[peer] || ''
+
+  if (range && satisfies(supports, range)) {
+    console.log(`${name.padEnd(24)} hold can be lifted: ${pkg} ${info.version} supports ${peer} ${supports} ("${range}")`)
+    drift = true
+  }
 }
 
 if (update) {
@@ -80,4 +100,46 @@ function compare (a, b) {
 
 function parse (version) {
   return version.split('.').map(Number)
+}
+
+function reason (entry) {
+  return typeof entry === 'string' ? entry : entry.reason
+}
+
+// Check a version against an npm range such as ">=4.8.4 <6.1.0 || ^7.0.0".
+// Supports comparators, carets, tildes, x-ranges and ||, which covers the
+// peer dependency ranges used in practice.
+function satisfies (version, range) {
+  const v = parse(version)
+
+  return range.split('||').some((part) => part.trim().split(/\s+/).every((comparator) => {
+    const match = /^(>=|<=|>|<|=|\^|~)?v?(\d+|x|\*)(?:\.(\d+|x|\*))?(?:\.(\d+|x|\*))?$/.exec(comparator)
+    if (!match) return comparator === '*' || comparator === ''
+
+    const [, op = '', ...parts] = match
+    const wild = parts.findIndex((p) => p === undefined || p === 'x' || p === '*')
+    const base = parts.map((p) => (p === undefined || p === 'x' || p === '*') ? 0 : Number(p))
+
+    // x-ranges and partial versions: 7, 7.x, 7.1.x
+    if (wild !== -1 && (op === '' || op === '=')) {
+      if (wild === 0) return true
+      const upper = base.slice()
+      upper[wild - 1] += 1
+      return compare(v, base) >= 0 && compare(v, upper.map((n, i) => i < wild ? n : 0)) < 0
+    }
+
+    if (op === '^') {
+      const i = base[0] > 0 ? 0 : base[1] > 0 ? 1 : 2
+      const upper = base.map((n, j) => j < i ? n : j === i ? n + 1 : 0)
+      return compare(v, base) >= 0 && compare(v, upper) < 0
+    }
+
+    if (op === '~') {
+      const upper = [base[0], base[1] + 1, 0]
+      return compare(v, base) >= 0 && compare(v, upper) < 0
+    }
+
+    const diff = compare(v, base)
+    return { '>=': diff >= 0, '<=': diff <= 0, '>': diff > 0, '<': diff < 0, '=': diff === 0, '': diff === 0 }[op]
+  }))
 }
