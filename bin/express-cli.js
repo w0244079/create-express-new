@@ -11,41 +11,6 @@ const MODE_0755 = 0o755
 const TEMPLATE_DIR = path.join(import.meta.dirname, '..', 'templates')
 const VERSION = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8')).version
 
-// supported stylesheet engines, compiled by the generated app's "build:css"
-// script and recompiled on change by its "dev:css" script
-const CSS_ENGINES = {
-  less: {
-    ext: 'less',
-    pkg: 'less',
-    version: '^4.9.1',
-    build: 'lessc public/stylesheets/style.less public/stylesheets/style.css',
-    // lessc has no watch mode, so rebuild whenever a .less file changes
-    watch: 'nodemon --watch public/stylesheets --ext less --exec "npm run build:css"',
-    devDependencies: { nodemon: '^3.1.14' }
-  },
-  sass: {
-    ext: 'sass',
-    pkg: 'sass',
-    version: '^1.105.1',
-    build: 'sass public/stylesheets:public/stylesheets',
-    watch: 'sass --watch public/stylesheets:public/stylesheets'
-  },
-  scss: {
-    ext: 'scss',
-    pkg: 'sass',
-    version: '^1.105.1',
-    build: 'sass public/stylesheets:public/stylesheets',
-    watch: 'sass --watch public/stylesheets:public/stylesheets'
-  },
-  stylus: {
-    ext: 'styl',
-    pkg: 'stylus',
-    version: '^0.64.0',
-    build: 'stylus public/stylesheets',
-    watch: 'stylus --watch public/stylesheets'
-  }
-}
-
 // supported view engines, keyed by template file extension
 const VIEW_ENGINES = {
   ejs: { pkg: 'ejs', version: '^6.0.1' },
@@ -73,7 +38,6 @@ const OPTIONS = {
   cjs: { type: 'boolean' },
   compression: { type: 'boolean' },
   cookies: { type: 'boolean' },
-  css: { type: 'string', short: 'c' },
   force: { type: 'boolean', short: 'f' },
   git: { type: 'boolean' },
   helmet: { type: 'boolean' },
@@ -163,7 +127,9 @@ function createApplication (name, dir, options, done) {
     type: esm ? 'module' : 'commonjs',
     scripts: {
       start: 'node ' + www,
-      test: 'node --test'
+      test: 'node --test',
+      // restart the app on change
+      dev: 'node --watch ' + www
     },
     engines: {
       // TypeScript type stripping is enabled by default from Node.js 22.18
@@ -233,28 +199,8 @@ function createApplication (name, dir, options, done) {
   mkdir(dir, 'public/images')
   mkdir(dir, 'public/stylesheets')
 
-  // CSS Engine support
-  const css = CSS_ENGINES[options.css]
-
-  if (css) {
-    // compile stylesheets before the app starts
-    copyTemplateMulti('css', dir + '/public/stylesheets', css.ext)
-    pkg.scripts['build:css'] = css.build
-    pkg.scripts.prestart = 'npm run build:css'
-    pkg.dependencies[css.pkg] = css.version
-
-    // restart the app and recompile stylesheets on change
-    pkg.scripts.dev = 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app'
-    pkg.scripts['dev:app'] = 'node --watch ' + www
-    pkg.scripts['dev:css'] = css.watch
-    pkg.devDependencies.concurrently = '^10.0.5'
-    Object.assign(pkg.devDependencies, css.devDependencies)
-  } else {
-    copyTemplateMulti('css', dir + '/public/stylesheets', 'css')
-
-    // restart the app on change
-    pkg.scripts.dev = 'node --watch ' + www
-  }
+  // Stylesheet
+  copyTemplate('css/style.css', path.join(dir, 'public/stylesheets/style.css'))
 
   // copy route templates
   mkdir(dir, 'routes')
@@ -445,10 +391,6 @@ function main (options, done) {
   } else if (options.version) {
     version()
     done(0)
-  } else if (options.css === '') {
-    usage()
-    error('option `-c, --css <engine>\' argument missing')
-    done(1)
   } else if (options.view === '') {
     usage()
     error('option `-v, --view <engine>\' argument missing')
@@ -477,21 +419,10 @@ function main (options, done) {
       return done(1)
     }
 
-    if (options.css === 'compass') {
-      warning("compass is no longer supported, using `--css=scss'")
-      options.css = 'scss'
-    }
-
     // Unsupported engines
     if (options.view && !VIEW_ENGINES[options.view]) {
       usage()
       error('unsupported view engine `' + options.view + "'")
-      return done(1)
-    }
-
-    if (options.css !== true && !CSS_ENGINES[options.css]) {
-      usage()
-      error('unsupported stylesheet engine `' + options.css + "'")
       return done(1)
     }
 
@@ -531,7 +462,7 @@ function mkdir (base, dir) {
 /**
  * Parse command line arguments.
  *
- * Engine options default to `true` when not given and are `''` when given
+ * The view option defaults to `true` when not given and is `''` when given
  * without an argument; `_` holds positionals and `!` holds unknown options.
  *
  * @param {string[]} argv
@@ -546,7 +477,7 @@ function parseOptions (argv) {
     tokens: true
   })
 
-  const options = { css: true, view: true, ...values, _: positionals, '!': [] }
+  const options = { view: true, ...values, _: positionals, '!': [] }
 
   for (const token of tokens) {
     if (token.kind !== 'option') continue
@@ -589,7 +520,6 @@ function usage () {
   console.log('')
   console.log('    -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)')
   console.log('        --no-view        use static html instead of view engine')
-  console.log('    -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)')
   console.log('        --cjs            generate CommonJS modules instead of ES modules')
   console.log('        --ts             generate TypeScript, run directly by Node.js')
   console.log('        --helmet         add helmet middleware for security headers')

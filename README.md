@@ -47,9 +47,8 @@ Use `--cjs` to generate CommonJS modules (`require()` / `module.exports`) instea
 Use `--ts` to generate TypeScript. Node.js 22.18+ runs the `.ts` files directly by
 [stripping types](https://nodejs.org/api/typescript.html#type-stripping), so there is no build step;
 run `npm run typecheck` to check types with `tsc`. `--ts` cannot be combined with `--cjs`.
-When a stylesheet engine is chosen, the stylesheets are compiled by the app's `build:css` script, which runs automatically before `npm start`.
 
-During development, run the app with automatic restarts (and stylesheet recompiling, when a stylesheet engine is chosen):
+During development, run the app with automatic restarts:
 
 ```bash
 $ npm run dev
@@ -61,6 +60,19 @@ Run the app's tests, written with the built-in [`node:test`](https://nodejs.org/
 $ npm test
 ```
 
+## Using Sass
+
+Generated apps use plain CSS, which now covers variables, nesting and more.
+To use [Sass](https://sass-lang.com/) instead, install it and compile your stylesheets before the app starts:
+
+```bash
+$ npm install --save-dev sass
+$ mv public/stylesheets/style.css public/stylesheets/style.scss
+$ npm pkg set scripts.build:css="sass public/stylesheets:public/stylesheets" scripts.prestart="npm run build:css"
+```
+
+Run `npx sass --watch public/stylesheets:public/stylesheets` alongside `npm run dev` to recompile on change.
+
 ## Command Line Options
 
 This generator can also be further configured with the following command line flags.
@@ -68,7 +80,6 @@ This generator can also be further configured with the following command line fl
         --version        output the version number
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
-    -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)
         --cjs            generate CommonJS modules instead of ES modules
         --ts             generate TypeScript, run directly by Node.js
         --helmet         add helmet middleware for security headers
