@@ -284,6 +284,125 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--api', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--api'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 9)
+        done()
+      })
+    })
+
+    it('should not have views or public files', function () {
+      ctx.files.forEach(function (name) {
+        assert.ok(!/^(views|public)\//.test(name), 'should not have ' + name)
+      })
+    })
+
+    it('should only parse JSON request bodies', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^app\.use\(express\.json\(\)\);$/m.test(contents))
+      assert.ok(!/urlencoded|express\.static|node:path/.test(contents))
+    })
+
+    it('should have API dependencies', function () {
+      const file = path.resolve(ctx.dir, 'package.json')
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assert.deepStrictEqual(Object.keys(pkg.dependencies), ['express', 'http-errors', 'morgan'])
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass npm test', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'test', done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should respond with JSON', function (done) {
+        request(this.app)
+          .get('/')
+          .expect('Content-Type', /application\/json/)
+          .expect(200, { message: 'Welcome to Express' }, done)
+      })
+
+      it('should list users as JSON', function (done) {
+        request(this.app)
+          .get('/users')
+          .expect(200, [], done)
+      })
+
+      it('should generate a JSON 404', function (done) {
+        request(this.app)
+          .get('/does_not_exist')
+          .expect('Content-Type', /application\/json/)
+          .expect(404)
+          .expect(function (res) {
+            assert.strictEqual(res.body.error, 'Not Found')
+          })
+          .end(done)
+      })
+    })
+
+    describe('with --ts', function () {
+      const ctx0 = setupTestEnvironment('api with ts')
+
+      it('should create basic app', function (done) {
+        run(ctx0.dir, ['--api', '--ts'], function (err) {
+          done(err)
+        })
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx0.dir, done)
+      })
+
+      it('should pass type checking', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx0.dir, 'typecheck', done)
+      })
+
+      it('should pass npm test', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx0.dir, 'test', done)
+      })
+    })
+
+    describe('with --view', function () {
+      const ctx1 = setupTestEnvironment('api with view')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx1.dir, ['--api', '--view', 'ejs'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--api' cannot be used with `--view'/.test(stderr))
+          done()
+        })
+      })
+    })
+  })
+
   describe('--cjs', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 

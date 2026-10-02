@@ -1,7 +1,7 @@
 # express-generator-modern
 
-An application generator for [Express 5](https://expressjs.com/), creating ES module,
-TypeScript or CommonJS apps that run on current Node.js with no build step.
+An application generator for [Express 5](https://expressjs.com/), creating web apps or JSON APIs
+as ES modules, TypeScript or CommonJS that run on current Node.js with no build step.
 
 [![NPM Version][npm-image]][npm-url]
 [![CI][github-actions-ci-image]][github-actions-ci-url]
@@ -56,6 +56,27 @@ my-app
 └── views/            # error, index and layout templates (pug by default)
 ```
 
+### JSON APIs
+
+`--api` generates a JSON API instead of a web app: no views, static files or form parsing, and
+routes that respond with JSON.
+
+```
+my-api
+├── app.js            # JSON body parsing, routes, JSON 404 and error handling
+├── bin/www.js
+├── package.json
+├── routes/           # index.js and users.js, responding with JSON
+└── test/app.test.js
+```
+
+Errors are always JSON, such as `{ "error": "Not Found" }`. Client errors (4xx) include their message;
+server errors (5xx) only say `Internal Server Error` in production, so internal details are never sent.
+In development, every error includes its message and stack trace. Express runs in development mode
+unless `NODE_ENV` is set, so set `NODE_ENV=production` when you deploy.
+
+`--api` works with `--cjs`, `--ts` and the optional middleware, but not with `--view`.
+
 ### Module formats
 
 - **ES modules** (default): `import`/`export`, `import.meta.dirname` and `node:` built-ins.
@@ -67,7 +88,8 @@ my-app
 
 ### Optional middleware
 
-By default, generated apps include only request logging, body parsing and static files. Add more with:
+By default, generated apps include only request logging, body parsing and static files (no static
+files with `--api`). Add more with:
 
 - `--helmet`: [helmet](https://helmetjs.github.io/) security headers
 - `--compression`: gzip/brotli response [compression](https://github.com/expressjs/compression)
@@ -77,6 +99,7 @@ By default, generated apps include only request logging, body parsing and static
 
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
+        --api            generate a JSON API, without views or static files
         --cjs            generate CommonJS modules instead of ES modules
         --ts             generate TypeScript, run directly by Node.js
         --helmet         add helmet middleware for security headers
@@ -94,6 +117,7 @@ This fork started from `express-generator` 4.16.1.
 ### Added
 
 - ES module output by default, plus `--cjs` for CommonJS and `--ts` for TypeScript
+- `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in production
 - `--helmet`, `--compression` and `--cookies` options for opt-in middleware
 - An `npm run dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run with `npm test`

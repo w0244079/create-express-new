@@ -38,6 +38,7 @@ const TSCONFIG = {
 
 // command line options
 const OPTIONS = {
+  api: { type: 'boolean' },
   cjs: { type: 'boolean' },
   compression: { type: 'boolean' },
   cookies: { type: 'boolean' },
@@ -117,6 +118,9 @@ function createApplication (name, dir, options, done) {
   const esm = !options.cjs
   const dirname = esm ? 'import.meta.dirname' : '__dirname'
 
+  // App kind: a JSON API has no views or static files
+  const api = Boolean(options.api)
+
   // Language
   const ts = Boolean(options.ts)
   const ext = ts ? 'ts' : 'js'
@@ -150,12 +154,14 @@ function createApplication (name, dir, options, done) {
   const test = loadTemplate('js/test/app.test.js')
 
   for (const template of [app, server, test]) {
+    template.locals.api = api
     template.locals.esm = esm
     template.locals.ext = ext
     template.locals.ts = ts
   }
 
   app.locals.dirname = dirname
+  app.locals.httpErrors = Boolean(options.view) || api
 
   // App modules
   app.locals.localModules = Object.create(null)
@@ -184,7 +190,10 @@ function createApplication (name, dir, options, done) {
 
   // Body parsers
   app.locals.uses.push('express.json()')
-  app.locals.uses.push('express.urlencoded({ extended: false })')
+
+  if (!api) {
+    app.locals.uses.push('express.urlencoded({ extended: false })')
+  }
 
   // Cookie parser
   if (options.cookies) {
@@ -197,18 +206,21 @@ function createApplication (name, dir, options, done) {
     mkdir(dir, '.')
   }
 
-  mkdir(dir, 'public')
-  mkdir(dir, 'public/javascripts')
-  mkdir(dir, 'public/images')
-  mkdir(dir, 'public/stylesheets')
+  if (!api) {
+    mkdir(dir, 'public')
+    mkdir(dir, 'public/javascripts')
+    mkdir(dir, 'public/images')
+    mkdir(dir, 'public/stylesheets')
 
-  // Stylesheet
-  copyTemplate('css/style.css', path.join(dir, 'public/stylesheets/style.css'))
+    // Stylesheet
+    copyTemplate('css/style.css', path.join(dir, 'public/stylesheets/style.css'))
+  }
 
   // copy route templates
   mkdir(dir, 'routes')
   for (const route of ['index', 'users']) {
     const router = loadTemplate('js/routes/' + route + '.js')
+    router.locals.api = api
     router.locals.esm = esm
     write(path.join(dir, 'routes', route + '.' + ext), router.render())
   }
@@ -234,16 +246,25 @@ function createApplication (name, dir, options, done) {
     copyTemplateMulti('views', dir + '/views', options.view)
 
     app.locals.view = { engine: options.view }
-    pkg.dependencies['http-errors'] = VERSIONS['http-errors']
     pkg.dependencies[view.pkg] = VERSIONS[view.pkg]
   } else {
-    // Copy extra public files
-    copyTemplate('js/index.html', path.join(dir, 'public/index.html'))
     app.locals.view = false
+
+    // Copy extra public files
+    if (!api) {
+      copyTemplate('js/index.html', path.join(dir, 'public/index.html'))
+    }
+  }
+
+  // HTTP errors for the 404 and error handlers
+  if (app.locals.httpErrors) {
+    pkg.dependencies['http-errors'] = VERSIONS['http-errors']
   }
 
   // Static files
-  app.locals.uses.push('express.static(path.join(' + dirname + ", 'public'))")
+  if (!api) {
+    app.locals.uses.push('express.static(path.join(' + dirname + ", 'public'))")
+  }
 
   if (options.git) {
     copyTemplate('js/gitignore', path.join(dir, '.gitignore'))
@@ -254,7 +275,7 @@ function createApplication (name, dir, options, done) {
     pkg.scripts.typecheck = 'tsc'
     const types = ['@types/express', '@types/morgan', '@types/node']
 
-    if (options.view) types.push('@types/http-errors')
+    if (app.locals.httpErrors) types.push('@types/http-errors')
     if (options.compression) types.push('@types/compression')
     if (options.cookies) types.push('@types/cookie-parser')
 
@@ -405,6 +426,17 @@ function main (options, done) {
     // App name
     const appName = createAppName(path.resolve(destinationPath)) || 'hello-world'
 
+    // A JSON API has no view engine
+    if (options.api) {
+      if (typeof options.view === 'string') {
+        usage()
+        error('option `--api\' cannot be used with `--view\'')
+        return done(1)
+      }
+
+      options.view = false
+    }
+
     // Default view engine
     if (options.view === true) {
       options.view = 'pug'
@@ -523,6 +555,7 @@ function usage () {
   console.log('')
   console.log('    -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)')
   console.log('        --no-view        use static html instead of view engine')
+  console.log('        --api            generate a JSON API, without views or static files')
   console.log('        --cjs            generate CommonJS modules instead of ES modules')
   console.log('        --ts             generate TypeScript, run directly by Node.js')
   console.log('        --helmet         add helmet middleware for security headers')
@@ -530,7 +563,7 @@ function usage () {
   console.log('        --cookies        add cookie-parser middleware')
   console.log('        --git            add .gitignore')
   console.log('    -f, --force          force on non-empty directory')
-  console.log('    --version            output the version number')
+  console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')
 }
 

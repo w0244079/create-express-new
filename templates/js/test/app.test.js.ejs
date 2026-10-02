@@ -38,6 +38,27 @@ describe('app', () => {
     server.close();
   });
 
+<% if (api) { -%>
+  it('responds to GET /', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), { message: 'Welcome to Express' });
+  });
+
+  it('responds to GET /users', async () => {
+    const res = await fetch(`${baseUrl}/users`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), []);
+  });
+
+  it('responds with a JSON 404 for unknown routes', async () => {
+    const res = await fetch(`${baseUrl}/does-not-exist`);
+    assert.strictEqual(res.status, 404);
+    assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+    assert.strictEqual((await res.json()).error, 'Not Found');
+  });
+});
+<% } else { -%>
   it('responds to GET /', async () => {
     const res = await fetch(`${baseUrl}/`);
     assert.strictEqual(res.status, 200);
@@ -54,3 +75,4 @@ describe('app', () => {
     assert.strictEqual(res.status, 404);
   });
 });
+<% } -%>

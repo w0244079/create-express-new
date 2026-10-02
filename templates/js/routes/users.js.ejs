@@ -8,7 +8,11 @@ const router = express.Router();
 
 /* GET users listing. */
 router.get('/', (req, res) => {
+<% if (api) { -%>
+  res.json([]);
+<% } else { -%>
   res.send('respond with a resource');
+<% } -%>
 });
 
 <% if (esm) { -%>
