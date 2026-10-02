@@ -41,6 +41,9 @@ Start your Express.js app at `http://localhost:3000/`:
 $ npm start
 ```
 
+Generated apps are ES modules (`"type": "module"`) built on Express 5, and require Node.js 20.11 or newer.
+When a stylesheet engine is chosen, the stylesheets are compiled by the app's `build:css` script, which runs automatically before `npm start`.
+
 ## Command Line Options
 
 This generator can also be further configured with the following command line flags.
@@ -49,10 +52,9 @@ This generator can also be further configured with the following command line fl
     -e, --ejs            add ejs engine support
         --pug            add pug engine support
         --hbs            add handlebars engine support
-    -H, --hogan          add hogan.js engine support
-    -v, --view <engine>  add view <engine> support (dust|ejs|hbs|hjs|jade|pug|twig|vash) (defaults to jade)
+    -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
-    -c, --css <engine>   add stylesheet <engine> support (less|stylus|compass|sass) (defaults to plain css)
+    -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)
         --git            add .gitignore
     -f, --force          force on non-empty directory
     -h, --help           output usage information
