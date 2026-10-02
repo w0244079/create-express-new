@@ -75,15 +75,26 @@ main(parseOptions(process.argv.slice(2)), exit)
  * Prompt for confirmation on STDOUT/STDIN
  */
 
-function confirm (msg, callback) {
+function confirm (msg, fn) {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
   })
 
+  let answered = false
+
   rl.question(msg, (input) => {
+    answered = true
     rl.close()
-    callback(/^y|yes|ok|true$/i.test(input))
+    fn(/^(y|yes|ok|true)$/i.test(input.trim()))
+  })
+
+  // treat closing STDIN without an answer as "no"
+  rl.on('close', () => {
+    if (!answered) {
+      console.log()
+      fn(false)
+    }
   })
 }
 
@@ -306,27 +317,11 @@ function error (message) {
 }
 
 /**
- * Graceful exit for async STDIO
+ * Set the exit code, letting the process exit once all output is flushed.
  */
 
 function exit (code) {
-  // flush output for Node.js Windows pipe bug
-  // https://github.com/joyent/node/issues/6247 is just one bug example
-  // https://github.com/visionmedia/mocha/issues/333 has a good discussion
-  function done () {
-    if (!(draining--)) process.exit(code)
-  }
-
-  let draining = 0
-  const streams = [process.stdout, process.stderr]
-
-  streams.forEach((stream) => {
-    // submit empty write request and wait for completion
-    draining += 1
-    stream.write('', done)
-  })
-
-  done()
+  process.exitCode = code
 }
 
 /**

@@ -235,6 +235,47 @@ describe('express(1)', function () {
     })
   })
 
+  describe('(non-empty directory)', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    function confirmWith (input, callback) {
+      const dir = path.join(ctx.dir, 'app')
+
+      fs.rmSync(dir, { recursive: true, force: true })
+      fs.mkdirSync(dir)
+      fs.writeFileSync(path.join(dir, 'existing.txt'), '')
+
+      runWithInput(ctx.dir, ['app'], input, function (err, code, stdout, stderr) {
+        if (err) return callback(err)
+        callback(null, code, fs.existsSync(path.join(dir, 'app.js')), stdout, stderr)
+      })
+    }
+
+    ;['y\n', 'yes\n', 'OK\n', ' true \n'].forEach(function (input) {
+      it('should create app when answering ' + JSON.stringify(input), function (done) {
+        confirmWith(input, function (err, code, created, stdout) {
+          if (err) return done(err)
+          assert.ok(/destination is not empty, continue\?/.test(stdout))
+          assert.strictEqual(code, 0)
+          assert.ok(created, 'should have created app.js')
+          done()
+        })
+      })
+    })
+
+    ;['n\n', '\n', 'not true\n', 'yesterday\n', ''].forEach(function (input) {
+      it('should abort when answering ' + JSON.stringify(input), function (done) {
+        confirmWith(input, function (err, code, created, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(!created, 'should not have created app.js')
+          assert.ok(/aborting/.test(stderr))
+          done()
+        })
+      })
+    })
+  })
+
   describe('--css <engine>', function () {
     describe('(no engine)', function () {
       const ctx = setupTestEnvironment(this.fullTitle())
@@ -1201,7 +1242,7 @@ describe('express(1)', function () {
 function npmInstall (dir, callback) {
   const env = utils.childEnvironment()
 
-  exec('npm install', { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stderr) {
+  exec('npm install --prefer-offline --no-audit --no-fund', { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stderr) {
     if (err) {
       err.message += stderr
       callback(err)
@@ -1232,6 +1273,10 @@ function run (dir, args, callback) {
 }
 
 function runRaw (dir, args, callback) {
+  runWithInput(dir, args, '', callback)
+}
+
+function runWithInput (dir, args, input, callback) {
   const argv = [BIN_PATH].concat(args)
   const binp = process.argv[0]
   let stderr = ''
@@ -1240,6 +1285,8 @@ function runRaw (dir, args, callback) {
   const child = spawn(binp, argv, {
     cwd: dir
   })
+
+  child.stdin.end(input)
 
   child.stdout.setEncoding('utf8')
   child.stdout.on('data', function ondata (str) {
