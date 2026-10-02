@@ -56,6 +56,7 @@ const VIEW_ENGINES = {
 
 // command line options
 const OPTIONS = {
+  cjs: { type: 'boolean' },
   css: { type: 'string', short: 'c' },
   ejs: { type: 'boolean', short: 'e' },
   force: { type: 'boolean', short: 'f' },
@@ -130,12 +131,16 @@ function copyTemplateMulti (fromDir, toDir, ext) {
 function createApplication (name, dir, options, done) {
   console.log()
 
+  // Module format
+  const esm = !options.cjs
+  const dirname = esm ? 'import.meta.dirname' : '__dirname'
+
   // Package
   const pkg = {
     name,
     version: '0.0.0',
     private: true,
-    type: 'module',
+    type: esm ? 'module' : 'commonjs',
     scripts: {
       start: 'node ./bin/www.js'
     },
@@ -150,6 +155,10 @@ function createApplication (name, dir, options, done) {
 
   // JavaScript
   const app = loadTemplate('js/app.js')
+  const www = loadTemplate('js/www.js')
+
+  app.locals.esm = www.locals.esm = esm
+  app.locals.dirname = dirname
 
   // App modules
   app.locals.localModules = Object.create(null)
@@ -205,7 +214,11 @@ function createApplication (name, dir, options, done) {
 
   // copy route templates
   mkdir(dir, 'routes')
-  copyTemplateMulti('js/routes', dir + '/routes', 'js')
+  for (const route of ['index', 'users']) {
+    const router = loadTemplate('js/routes/' + route + '.js')
+    router.locals.esm = esm
+    write(path.join(dir, 'routes', route + '.js'), router.render())
+  }
 
   // Index router mount
   app.locals.localModules.indexRouter = './routes/index.js'
@@ -233,7 +246,7 @@ function createApplication (name, dir, options, done) {
   }
 
   // Static files
-  app.locals.uses.push("express.static(path.join(import.meta.dirname, 'public'))")
+  app.locals.uses.push('express.static(path.join(' + dirname + ", 'public'))")
 
   if (options.git) {
     copyTemplate('js/gitignore', path.join(dir, '.gitignore'))
@@ -251,7 +264,7 @@ function createApplication (name, dir, options, done) {
   write(path.join(dir, 'app.js'), app.render())
   write(path.join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
   mkdir(dir, 'bin')
-  copyTemplate('js/www.js', path.join(dir, 'bin/www.js'), MODE_0755)
+  write(path.join(dir, 'bin/www.js'), www.render(), MODE_0755)
 
   const prompt = launchedFromCmd() ? '>' : '$'
 
@@ -529,6 +542,7 @@ function usage () {
   console.log('    -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)')
   console.log('        --no-view        use static html instead of view engine')
   console.log('    -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)')
+  console.log('        --cjs            generate CommonJS modules instead of ES modules')
   console.log('        --git            add .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('    --version            output the version number')

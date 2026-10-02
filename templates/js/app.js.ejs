@@ -1,3 +1,4 @@
+<% if (esm) { -%>
 <% if (view) { -%>
 import createError from 'http-errors';
 <% } -%>
@@ -10,6 +11,20 @@ import <%- variable %> from '<%- modules[variable] %>';
 <% Object.keys(localModules).sort().forEach(function (variable) { -%>
 import <%- variable %> from '<%- localModules[variable] %>';
 <% }); -%>
+<% } else { -%>
+<% if (view) { -%>
+const createError = require('http-errors');
+<% } -%>
+const express = require('express');
+const path = require('node:path');
+<% Object.keys(modules).sort().forEach(function (variable) { -%>
+const <%- variable %> = require('<%- modules[variable] %>');
+<% }); -%>
+
+<% Object.keys(localModules).sort().forEach(function (variable) { -%>
+const <%- variable %> = require('<%- localModules[variable] %>');
+<% }); -%>
+<% } -%>
 
 const app = express();
 
@@ -18,7 +33,7 @@ const app = express();
 <% if (view.render) { -%>
 app.engine('<%- view.engine %>', <%- view.render %>);
 <% } -%>
-app.set('views', path.join(import.meta.dirname, 'views'));
+app.set('views', path.join(<%- dirname %>, 'views'));
 app.set('view engine', '<%- view.engine %>');
 
 <% } -%>
@@ -48,4 +63,8 @@ app.use((err, req, res, next) => {
 });
 
 <% } -%>
+<% if (esm) { -%>
 export default app;
+<% } else { -%>
+module.exports = app;
+<% } -%>

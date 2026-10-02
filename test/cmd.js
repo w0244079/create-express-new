@@ -1,6 +1,7 @@
 import assert from 'node:assert'
 import { exec, spawn } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import url from 'node:url'
 import request from 'supertest'
@@ -272,6 +273,87 @@ describe('express(1)', function () {
           assert.ok(/aborting/.test(stderr))
           done()
         })
+      })
+    })
+  })
+
+  describe('--cjs', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--cjs'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 16)
+        done()
+      })
+    })
+
+    it('should have basic files', function () {
+      assert.notStrictEqual(ctx.files.indexOf('bin/www.js'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('app.js'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('package.json'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('routes/index.js'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('routes/users.js'), -1)
+    })
+
+    it('should be a CommonJS package', function () {
+      const file = path.resolve(ctx.dir, 'package.json')
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assert.strictEqual(pkg.type, 'commonjs')
+    })
+
+    it('should use require instead of import', function () {
+      ['app.js', 'bin/www.js', 'routes/index.js', 'routes/users.js'].forEach(function (name) {
+        const contents = fs.readFileSync(path.resolve(ctx.dir, name), 'utf8')
+        assert.ok(/require\(/.test(contents), name + ' should use require')
+        assert.ok(!/^(import|export) /m.test(contents), name + ' should not use import/export')
+        assert.ok(!/import\.meta/.test(contents), name + ' should not use import.meta')
+      })
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should export an express app from app.js', function () {
+      const app = createRequire(import.meta.url)(path.resolve(ctx.dir, 'app.js'))
+      assert.strictEqual(typeof app, 'function')
+      assert.strictEqual(typeof app.handle, 'function')
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should respond to HTTP request', function (done) {
+        request(this.app)
+          .get('/')
+          .expect(200, /<title>Express<\/title>/, done)
+      })
+
+      it('should respond with stylesheet', function (done) {
+        request(this.app)
+          .get('/stylesheets/style.css')
+          .expect(200, /sans-serif/, done)
+      })
+
+      it('should generate a 404', function (done) {
+        request(this.app)
+          .get('/does_not_exist')
+          .expect(404, /<h1>Not Found<\/h1>/, done)
       })
     })
   })

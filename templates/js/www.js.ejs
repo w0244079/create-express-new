@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
+<% if (esm) { -%>
 import app from '../app.js';
+<% } else { -%>
+const app = require('../app.js');
+<% } -%>
 
 const port = process.env.PORT || 3000;
 

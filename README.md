@@ -42,6 +42,7 @@ $ npm start
 ```
 
 Generated apps are ES modules (`"type": "module"`) built on Express 5, and require Node.js 22 or newer.
+Use `--cjs` to generate CommonJS modules (`require()` / `module.exports`) instead.
 When a stylesheet engine is chosen, the stylesheets are compiled by the app's `build:css` script, which runs automatically before `npm start`.
 
 During development, run the app with automatic restarts (and stylesheet recompiling, when a stylesheet engine is chosen):
@@ -61,6 +62,7 @@ This generator can also be further configured with the following command line fl
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
     -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)
+        --cjs            generate CommonJS modules instead of ES modules
         --git            add .gitignore
     -f, --force          force on non-empty directory
     -h, --help           output usage information
