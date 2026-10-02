@@ -54,7 +54,8 @@
   "files": [
     "LICENSE",
     "bin/",
-    "templates/"
+    "templates/",
+    "lib/"
   ],
   "scripts": {
     "lint": "eslint .",

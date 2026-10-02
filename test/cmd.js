@@ -41,6 +41,10 @@ describe('express(1)', function () {
       assert.strictEqual(ctx.warnings.length, 0)
     })
 
+    it('should not start the wizard without a terminal', function () {
+      assert.ok(!/Project directory/.test(ctx.stdout))
+    })
+
     it('should provide start instructions', function () {
       assert.ok(/ npm start/.test(ctx.stdout))
       assert.ok(/ npm run dev/.test(ctx.stdout))

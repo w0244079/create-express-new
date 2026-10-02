@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
 import ejs from 'ejs'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 import util from 'node:util'
+import { CancelError } from '../lib/prompts.js'
+import { wizard } from '../lib/wizard.js'
 
 const MODE_0666 = 0o666
 const MODE_0755 = 0o755
@@ -52,8 +55,20 @@ const OPTIONS = {
   view: { type: 'string', short: 'v' }
 }
 
-// run
-main(parseOptions(process.argv.slice(2)), exit)
+// run the wizard when started in a terminal without arguments
+const args = process.argv.slice(2)
+
+if (args.length === 0 && process.stdin.isTTY && process.stdout.isTTY) {
+  wizard({ input: process.stdin, output: process.stdout }).then((options) => {
+    main(options, (code) => installDependencies(options, code))
+  }, (err) => {
+    if (!(err instanceof CancelError)) throw err
+    console.error('aborting')
+    exit(1)
+  })
+} else {
+  main(parseOptions(args), exit)
+}
 
 /**
  * Prompt for confirmation on STDOUT/STDIN
@@ -306,6 +321,56 @@ function createApplication (name, dir, options, done) {
   mkdir(dir, 'bin')
   write(path.join(dir, 'bin/www.' + ext), server.render(), MODE_0755)
 
+  // dependencies installed by the wizard print next steps afterwards
+  if (!options.install) {
+    printNextSteps(dir, true)
+  }
+
+  done(0)
+}
+
+/**
+ * Run npm install in the generated app, when the wizard asked to.
+ *
+ * @param {object} options
+ * @param {number} code
+ */
+
+function installDependencies (options, code) {
+  if (code !== 0 || !options.install) return exit(code)
+
+  const dir = options._[0]
+
+  console.log('   installing dependencies...')
+  console.log()
+
+  const child = spawn('npm', ['install'], {
+    cwd: dir,
+    shell: process.platform === 'win32',
+    stdio: 'inherit'
+  })
+
+  child.on('error', (err) => {
+    error('npm install failed: ' + err.message)
+    printNextSteps(dir, true)
+    exit(1)
+  })
+
+  child.on('close', (status) => {
+    if (status !== 0) error('npm install failed')
+    printNextSteps(dir, status !== 0)
+    exit(status === 0 ? 0 : 1)
+  })
+}
+
+/**
+ * Display the commands to run the generated app.
+ *
+ * @param {string} dir
+ * @param {boolean} install include the npm install step
+ */
+
+function printNextSteps (dir, install) {
   const prompt = launchedFromCmd() ? '>' : '$'
 
   if (dir !== '.') {
@@ -314,9 +379,12 @@ function createApplication (name, dir, options, done) {
     console.log('     %s cd %s', prompt, dir)
   }
 
-  console.log()
-  console.log('   install dependencies:')
-  console.log('     %s npm install', prompt)
+  if (install) {
+    console.log()
+    console.log('   install dependencies:')
+    console.log('     %s npm install', prompt)
+  }
+
   console.log()
   console.log('   run the app:')
   console.log('     %s npm start', prompt)
@@ -324,8 +392,6 @@ function createApplication (name, dir, options, done) {
   console.log('   run the app in development, restarting on change:')
   console.log('     %s npm run dev', prompt)
   console.log()
-
-  done(0)
 }
 
 /**

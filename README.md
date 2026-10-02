@@ -13,7 +13,18 @@ and modern Node.js. It is not affiliated with or endorsed by the Express project
 
 ## Quick Start
 
-Create an app (requires Node.js 22.9 or newer):
+Run the generator with no arguments to be guided through the options (requires Node.js 22.9 or newer):
+
+```bash
+$ npx express-generator-modern
+```
+
+The wizard asks for the project directory, whether you are building a web app or a JSON API, the
+view engine, the language (JavaScript, TypeScript or CommonJS), optional middleware and a `.gitignore`.
+It then shows the equivalent command, so you can repeat the setup or use it in scripts, and offers to
+run `npm install`.
+
+Or pass the options directly:
 
 ```bash
 $ npx express-generator-modern my-app
@@ -134,6 +145,7 @@ This fork started from `express-generator` 4.16.1.
 - ES module output by default, plus `--cjs` for CommonJS and `--ts` for TypeScript
 - `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in production
 - `.env` loading in `npm start` and `npm run dev`, with a generated `.env.example`
+- An interactive wizard when run without arguments in a terminal, which shows the equivalent command
 - `--helmet`, `--compression` and `--cookies` options for opt-in middleware
 - An `npm run dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run with `npm test`
@@ -149,6 +161,8 @@ This fork started from `express-generator` 4.16.1.
 - `bin/www` is now `bin/www.js`, a short script built on `app.listen()`
 - Generated apps require Node.js 22.9 or newer (22.18 for TypeScript)
 - The generator itself is an ES module with a single dependency (ejs), down from five
+- Running without arguments in a terminal starts the wizard instead of generating into the current
+  directory; pass `.` to generate into the current directory
 - The confirmation prompt for non-empty directories only accepts y, yes, ok or true, and aborts
   when STDIN closes without an answer
 

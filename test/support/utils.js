@@ -53,6 +53,11 @@ export function parseWarnings (str) {
   return warnings
 }
 
+export function stripAnsi (str) {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
+}
+
 export function stripColors (str) {
   // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[(\d+)m/g, '_color_$1_')
