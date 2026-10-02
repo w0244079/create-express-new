@@ -2,7 +2,7 @@ import assert from 'node:assert'
 import fs from 'node:fs'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { CancelError, rows } from '../lib/prompts.js'
+import { CancelError, rows, select } from '../lib/prompts.js'
 import { toCommand, wizard } from '../lib/wizard.js'
 import * as utils from './support/utils.js'
 
@@ -234,6 +234,43 @@ describe('wizard', function () {
       throw err
     })
   }
+})
+
+describe('select', function () {
+  it('should redraw for the new width when the terminal is resized', async function () {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    let text = ''
+
+    output.columns = 120
+    output.setEncoding('utf8')
+    output.on('data', function (str) {
+      text += str
+    })
+
+    const result = select({ input, output }, {
+      message: 'Language',
+      back: true,
+      choices: [
+        { label: 'JavaScript', value: 'esm', hint: 'ES modules' },
+        { label: 'TypeScript', value: 'ts', hint: 'runs directly on Node.js 22.18+' },
+        { label: 'JavaScript (CommonJS)', value: 'cjs', hint: 'require() and module.exports' }
+      ]
+    })
+
+    await new Promise(setImmediate)
+    text = ''
+    output.columns = 30
+    output.emit('resize')
+    await new Promise(setImmediate)
+
+    // the 4 lines drawn at 120 columns reflow onto 7 rows at 30 columns
+    assert.ok(text.startsWith('\x1b[7A\r'), JSON.stringify(text.slice(0, 12)))
+    assert.ok(!utils.stripAnsi(text).includes('ES modules'), 'should leave out hints that no longer fit')
+
+    input.write('\r')
+    assert.strictEqual(await result, 'esm')
+  })
 })
 
 describe('rows', function () {

@@ -172,9 +172,9 @@ function createApplication (name, dir, options, done) {
   }
 
   // JavaScript
-  const app = loadTemplate('js/app.js')
-  const server = loadTemplate('js/www.js')
-  const test = loadTemplate('js/test/app.test.js')
+  const app = loadTemplate('app/app.js')
+  const server = loadTemplate('app/www.js')
+  const test = loadTemplate('app/test/app.test.js')
 
   for (const template of [app, server, test]) {
     template.locals.api = api
@@ -245,13 +245,13 @@ function createApplication (name, dir, options, done) {
     mkdir(dir, 'public/stylesheets')
 
     // Stylesheet
-    copyTemplate('css/style.css', path.join(dir, 'public/stylesheets/style.css'))
+    copyTemplate('public/stylesheets/style.css', path.join(dir, 'public/stylesheets/style.css'))
   }
 
   // copy route templates
   mkdir(dir, 'routes')
   for (const route of ['index', 'users']) {
-    const router = loadTemplate('js/routes/' + route + '.js')
+    const router = loadTemplate('app/routes/' + route + '.js')
     router.locals.api = api
     router.locals.esm = esm
     write(path.join(dir, 'routes', route + '.' + ext), router.render())
@@ -284,7 +284,7 @@ function createApplication (name, dir, options, done) {
 
     // Copy extra public files
     if (!api) {
-      copyTemplate('js/index.html', path.join(dir, 'public/index.html'))
+      copyTemplate('public/index.html', path.join(dir, 'public/index.html'))
     }
   }
 
@@ -299,21 +299,21 @@ function createApplication (name, dir, options, done) {
   }
 
   // Environment variables
-  const envExample = loadTemplate('js/env.example')
+  const envExample = loadTemplate('app/env.example')
   envExample.locals.cors = Boolean(options.cors)
   write(path.join(dir, '.env.example'), envExample.render())
 
   // Container image
   if (options.docker) {
-    const dockerfile = loadTemplate('js/Dockerfile')
+    const dockerfile = loadTemplate('app/Dockerfile')
     dockerfile.locals.name = name
     dockerfile.locals.www = www
     write(path.join(dir, 'Dockerfile'), dockerfile.render())
-    copyTemplate('js/dockerignore', path.join(dir, '.dockerignore'))
+    copyTemplate('app/dockerignore', path.join(dir, '.dockerignore'))
   }
 
   if (options.git) {
-    copyTemplate('js/gitignore', path.join(dir, '.gitignore'))
+    copyTemplate('app/gitignore', path.join(dir, '.gitignore'))
   }
 
   // TypeScript type checking
@@ -334,7 +334,7 @@ function createApplication (name, dir, options, done) {
 
   // Linting
   if (options.lint) {
-    const config = loadTemplate('js/eslint.config.js')
+    const config = loadTemplate('app/eslint.config.js')
     config.locals.esm = esm
     config.locals.ts = ts
 
@@ -669,7 +669,10 @@ function sortedObject (obj) {
 
 function usage () {
   console.log('')
-  console.log('  Usage: express [options] [dir]')
+  console.log('  Usage: express-generator-modern [options] [dir]')
+  console.log('         express [options] [dir]   (when installed globally)')
+  console.log('')
+  console.log('  Run without arguments in a terminal to choose the options interactively.')
   console.log('')
   console.log('  Options:')
   console.log('')
