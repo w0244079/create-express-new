@@ -1,83 +1,80 @@
-[![Express Logo](https://i.cloudup.com/zfY6lL7eFa-3000x3000.png)](http://expressjs.com/)
+# express-generator-modern
 
-[Express'](https://www.npmjs.com/package/express) application generator.
+An application generator for [Express 5](https://expressjs.com/), creating ES module,
+TypeScript or CommonJS apps that run on current Node.js with no build step.
 
 [![NPM Version][npm-image]][npm-url]
-[![NPM Downloads][downloads-image]][downloads-url]
-[![Linux Build][github-actions-ci-image]][github-actions-ci-url]
-[![Windows Build][appveyor-image]][appveyor-url]
+[![CI][github-actions-ci-image]][github-actions-ci-url]
 
-## Installation
-
-```sh
-$ npm install -g express-generator
-```
-
-You can also run the application generator with the `npx` command. Node.js 22 or newer is required.
-
-```sh
-$ npx express-generator
-```
+`express-generator-modern` is a fork of [`express-generator`](https://github.com/expressjs/generator),
+the original Express application generator, reimagined for today's Express apps. It keeps the
+familiar `express` command and project layout, and updates everything it generates for Express 5
+and modern Node.js. It is not affiliated with or endorsed by the Express project.
 
 ## Quick Start
 
-The quickest way to get started with express is to utilize the executable `express(1)` to generate an application as shown below:
-
-Create the app:
+Create an app (requires Node.js 22 or newer):
 
 ```bash
-$ express --view=hbs /tmp/foo && cd /tmp/foo
-```
-
-Install dependencies:
-
-```bash
+$ npx express-generator-modern my-app
+$ cd my-app
 $ npm install
 ```
 
-Start your Express.js app at `http://localhost:3000/`:
+Start it at `http://localhost:3000/`:
 
 ```bash
-$ npm start
+$ npm run dev    # restarts on change
+$ npm start      # without restarting
 ```
 
-Generated apps are ES modules (`"type": "module"`) built on Express 5, and require Node.js 22 or newer.
-Use `--cjs` to generate CommonJS modules (`require()` / `module.exports`) instead.
-
-Use `--ts` to generate TypeScript. Node.js 22.18+ runs the `.ts` files directly by
-[stripping types](https://nodejs.org/api/typescript.html#type-stripping), so there is no build step;
-run `npm run typecheck` to check types with `tsc`. `--ts` cannot be combined with `--cjs`.
-
-During development, run the app with automatic restarts:
-
-```bash
-$ npm run dev
-```
-
-Run the app's tests, written with the built-in [`node:test`](https://nodejs.org/api/test.html) runner:
+Run its tests, written with the built-in [`node:test`](https://nodejs.org/api/test.html) runner:
 
 ```bash
 $ npm test
 ```
 
-## Using Sass
-
-Generated apps use plain CSS, which now covers variables, nesting and more.
-To use [Sass](https://sass-lang.com/) instead, install it and compile your stylesheets before the app starts:
+You can also install the generator globally, which provides the `express` command:
 
 ```bash
-$ npm install --save-dev sass
-$ mv public/stylesheets/style.css public/stylesheets/style.scss
-$ npm pkg set scripts.build:css="sass public/stylesheets:public/stylesheets" scripts.prestart="npm run build:css"
+$ npm install -g express-generator-modern
+$ express --view=ejs --helmet my-app
 ```
 
-Run `npx sass --watch public/stylesheets:public/stylesheets` alongside `npm run dev` to recompile on change.
+The original `express-generator` provides an `express` command too, so install only one of them globally.
+
+## What You Get
+
+```
+my-app
+├── app.js            # the Express app: middleware, views, routes, error handling
+├── bin/www.js        # starts the server, with graceful shutdown on SIGINT/SIGTERM
+├── package.json      # "type": "module", start/dev/test scripts
+├── public/           # static files, including stylesheets/style.css
+├── routes/           # index.js and users.js routers
+├── test/app.test.js  # node:test tests for the app
+└── views/            # error, index and layout templates (pug by default)
+```
+
+### Module formats
+
+- **ES modules** (default): `import`/`export`, `import.meta.dirname` and `node:` built-ins.
+- **CommonJS** (`--cjs`): the same app with `require()`/`module.exports`.
+- **TypeScript** (`--ts`): `.ts` files that Node.js 22.18+ runs directly by
+  [stripping types](https://nodejs.org/api/typescript.html#type-stripping), so there is no build step.
+  Includes a strict `tsconfig.json`, the `@types` packages the app needs and an `npm run typecheck`
+  script that runs `tsc`. `--ts` cannot be combined with `--cjs`.
+
+### Optional middleware
+
+By default, generated apps include only request logging, body parsing and static files. Add more with:
+
+- `--helmet`: [helmet](https://helmetjs.github.io/) security headers
+- `--compression`: gzip/brotli response [compression](https://github.com/expressjs/compression)
+- `--cookies`: [cookie-parser](https://github.com/expressjs/cookie-parser), for reading `req.cookies`
 
 ## Command Line Options
 
-This generator can also be further configured with the following command line flags.
-
-        --version        output the version number
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
         --cjs            generate CommonJS modules instead of ES modules
@@ -87,9 +84,76 @@ This generator can also be further configured with the following command line fl
         --cookies        add cookie-parser middleware
         --git            add .gitignore
     -f, --force          force on non-empty directory
+        --version        output the version number
     -h, --help           output usage information
 
-## Maintaining generated dependency versions
+## Changes From express-generator
+
+This fork started from `express-generator` 4.16.1.
+
+### Added
+
+- ES module output by default, plus `--cjs` for CommonJS and `--ts` for TypeScript
+- `--helmet`, `--compression` and `--cookies` options for opt-in middleware
+- An `npm run dev` script using `node --watch`
+- A generated test suite using `node:test` and `fetch`, run with `npm test`
+- Graceful shutdown on SIGINT and SIGTERM in `bin/www.js`
+- Clear errors for unknown view engines and conflicting options
+- `--view=jade` now warns and generates pug, jade's successor
+
+### Changed
+
+- Generates Express 5 apps (was Express 4.17) with current versions of every dependency,
+  including ejs 6, hbs 4, pug 3 and twig 3
+- The default view engine is pug (was jade)
+- `bin/www` is now `bin/www.js`, a short script built on `app.listen()`
+- Generated apps require Node.js 22 or newer (22.18 for TypeScript)
+- The generator itself is an ES module with a single dependency (ejs), down from five
+- The confirmation prompt for non-empty directories only accepts y, yes, ok or true, and aborts
+  when STDIN closes without an answer
+
+### Removed
+
+- The dust, hjs (Hogan.js), jade and vash view engines
+- CSS preprocessor support (`--css` for less, stylus, compass and sass): apps use plain CSS, which now
+  covers variables, nesting and more. See [Using Sass](#using-sass) to add it yourself.
+- The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
+- cookie-parser from the default middleware; use `--cookies`
+- The `debug` package and `DEBUG=...` start instructions; the server logs its port on start
+
+### Migrating commands
+
+| express-generator | express-generator-modern |
+| --- | --- |
+| `express --ejs` | `express --view=ejs` |
+| `express --hbs` | `express --view=hbs` |
+| `express --pug` | `express --view=pug` |
+| `express --hogan`, `--view=hjs` | not supported; `--view=hbs` (Handlebars) is the closest alternative |
+| `express --css=sass` | plain CSS, or add Sass as shown below |
+| `DEBUG=my-app:* npm start` | `npm start` or `npm run dev` |
+
+## Using Sass
+
+To use [Sass](https://sass-lang.com/) in a generated app, install it and compile your stylesheets
+before the app starts:
+
+```bash
+$ npm install --save-dev sass
+$ mv public/stylesheets/style.css public/stylesheets/style.scss
+$ npm pkg set scripts.build:css="sass public/stylesheets:public/stylesheets" scripts.prestart="npm run build:css"
+```
+
+Run `npx sass --watch public/stylesheets:public/stylesheets` alongside `npm run dev` to recompile on change.
+
+## Contributing
+
+```bash
+$ npm install
+$ npm test       # generates, installs and runs apps for each option
+$ npm run lint
+```
+
+### Maintaining generated dependency versions
 
 The versions of the packages that generated apps depend on live in
 [`templates/versions.json`](templates/versions.json). Dependabot does not cover them, so check them with:
@@ -104,13 +168,9 @@ Packages listed under `hold` are intentionally kept on an older major. The `vers
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Originally created by TJ Holowaychuk and the Express contributors.
 
-[npm-image]: https://img.shields.io/npm/v/express-generator.svg
-[npm-url]: https://npmjs.org/package/express-generator
-[appveyor-image]: https://img.shields.io/appveyor/ci/dougwilson/generator/master.svg?label=windows
-[appveyor-url]: https://ci.appveyor.com/project/dougwilson/generator
-[downloads-image]: https://img.shields.io/npm/dm/express-generator.svg
-[downloads-url]: https://npmjs.org/package/express-generator
-[github-actions-ci-image]: https://img.shields.io/github/workflow/status/expressjs/generator/ci/master?label=linux
-[github-actions-ci-url]: https://github.com/expressjs/generator/actions/workflows/ci.yml
+[npm-image]: https://img.shields.io/npm/v/express-generator-modern.svg
+[npm-url]: https://www.npmjs.com/package/express-generator-modern
+[github-actions-ci-image]: https://github.com/w0244079/generator/actions/workflows/ci.yml/badge.svg
+[github-actions-ci-url]: https://github.com/w0244079/generator/actions/workflows/ci.yml

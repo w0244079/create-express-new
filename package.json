@@ -1,9 +1,10 @@
 {
-  "name": "express-generator",
-  "description": "Express' application generator",
+  "name": "express-generator-modern",
+  "description": "Express 5 application generator: ESM, TypeScript and CommonJS app templates. A modern fork of express-generator.",
   "version": "5.0.0",
-  "author": "TJ Holowaychuk <tj@vision-media.ca>",
+  "author": "Michael Caines",
   "contributors": [
+    "TJ Holowaychuk <tj@vision-media.ca>",
     "Aaron Heckmann <aaron.heckmann+github@gmail.com>",
     "Ciaran Jessup <ciaranj@gmail.com>",
     "Douglas Christopher Wilson <doug@somethingdoug.com>",
@@ -13,24 +14,31 @@
   ],
   "keywords": [
     "express",
-    "framework",
-    "sinatra",
+    "express-generator",
+    "express5",
+    "generator",
+    "template",
+    "starter",
+    "scaffold",
+    "boilerplate",
+    "cli",
+    "esm",
+    "typescript",
     "web",
-    "rest",
-    "restful",
-    "router",
-    "app",
     "api"
   ],
-  "repository": "expressjs/generator",
+  "repository": "github:w0244079/generator",
+  "homepage": "https://github.com/w0244079/generator#readme",
+  "bugs": "https://github.com/w0244079/generator/issues",
   "license": "MIT",
+  "type": "module",
+  "bin": {
+    "express-generator-modern": "./bin/express-cli.js",
+    "express": "./bin/express-cli.js"
+  },
+  "preferGlobal": true,
   "dependencies": {
     "ejs": "^6.0.1"
-  },
-  "type": "module",
-  "preferGlobal": true,
-  "bin": {
-    "express": "./bin/express-cli.js"
   },
   "devDependencies": {
     "eslint": "^9.39.5",
