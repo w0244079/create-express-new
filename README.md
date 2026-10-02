@@ -4,7 +4,11 @@ An application generator for [Express 5](https://expressjs.com/), creating web a
 as ES modules, TypeScript or CommonJS that run on current Node.js with no build step.
 
 [![NPM Version][npm-image]][npm-url]
+[![NPM Downloads][downloads-image]][npm-url]
+[![Node.js Version][node-image]][npm-url]
+[![License][license-image]](LICENSE)
 [![CI][github-actions-ci-image]][github-actions-ci-url]
+[![OpenSSF Scorecard][scorecard-image]][scorecard-url]
 
 `create-express-new` is a fork of [`express-generator`](https://github.com/expressjs/generator),
 the original Express application generator, reimagined for today's Express apps. It keeps the
@@ -284,5 +288,10 @@ publishing.
 
 [npm-image]: https://img.shields.io/npm/v/create-express-new.svg
 [npm-url]: https://www.npmjs.com/package/create-express-new
+[downloads-image]: https://img.shields.io/npm/dm/create-express-new.svg
+[node-image]: https://img.shields.io/node/v/create-express-new.svg
+[license-image]: https://img.shields.io/npm/l/create-express-new.svg
 [github-actions-ci-image]: https://github.com/w0244079/generator/actions/workflows/ci.yml/badge.svg
 [github-actions-ci-url]: https://github.com/w0244079/generator/actions/workflows/ci.yml
+[scorecard-image]: https://api.scorecard.dev/projects/github.com/w0244079/generator/badge
+[scorecard-url]: https://scorecard.dev/viewer/?uri=github.com/w0244079/generator
