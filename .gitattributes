@@ -1,0 +1,3 @@
+# check out and publish with LF line endings on every platform, so
+# templates and generated apps match and lint the same on Windows
+* text=auto eol=lf
