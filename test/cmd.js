@@ -15,6 +15,7 @@ const BIN_PATH = path.resolve(path.dirname(PKG_PATH), JSON.parse(fs.readFileSync
 const NPM_INSTALL_TIMEOUT = 300000 // 5 minutes
 const STDERR_MAX_BUFFER = 5 * 1024 * 1024 // 5mb
 const TEMP_DIR = utils.tmpDir()
+const VERSIONS = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '..', 'templates', 'versions.json'), 'utf8')).versions
 
 describe('express(1)', function () {
   after(function (done) {
@@ -76,10 +77,10 @@ describe('express(1)', function () {
         '    "node": ">=22"\n' +
         '  },\n' +
         '  "dependencies": {\n' +
-        '    "express": "^5.2.1",\n' +
-        '    "http-errors": "^2.0.1",\n' +
-        '    "morgan": "^1.12.1",\n' +
-        '    "pug": "^3.0.4"\n' +
+        '    "express": "' + VERSIONS.express + '",\n' +
+        '    "http-errors": "' + VERSIONS['http-errors'] + '",\n' +
+        '    "morgan": "' + VERSIONS.morgan + '",\n' +
+        '    "pug": "' + VERSIONS.pug + '"\n' +
         '  }\n' +
         '}\n')
     })

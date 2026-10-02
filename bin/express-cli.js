@@ -11,12 +11,15 @@ const MODE_0755 = 0o755
 const TEMPLATE_DIR = path.join(import.meta.dirname, '..', 'templates')
 const VERSION = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8')).version
 
+// generated app dependency versions, checked by `npm run versions`
+const VERSIONS = JSON.parse(fs.readFileSync(path.join(TEMPLATE_DIR, 'versions.json'), 'utf-8')).versions
+
 // supported view engines, keyed by template file extension
 const VIEW_ENGINES = {
-  ejs: { pkg: 'ejs', version: '^6.0.1' },
-  hbs: { pkg: 'hbs', version: '^4.3.1' },
-  pug: { pkg: 'pug', version: '^3.0.4' },
-  twig: { pkg: 'twig', version: '^3.0.0' }
+  ejs: { pkg: 'ejs' },
+  hbs: { pkg: 'hbs' },
+  pug: { pkg: 'pug' },
+  twig: { pkg: 'twig' }
 }
 
 // tsconfig.json for TypeScript apps, which Node.js runs by stripping types
@@ -136,7 +139,7 @@ function createApplication (name, dir, options, done) {
       node: ts ? '>=22.18' : '>=22'
     },
     dependencies: {
-      express: '^5.2.1'
+      express: VERSIONS.express
     },
     devDependencies: {}
   }
@@ -164,20 +167,20 @@ function createApplication (name, dir, options, done) {
   if (options.helmet) {
     app.locals.modules.helmet = 'helmet'
     app.locals.uses.push('helmet()')
-    pkg.dependencies.helmet = '^8.3.0'
+    pkg.dependencies.helmet = VERSIONS.helmet
   }
 
   // Response compression
   if (options.compression) {
     app.locals.modules.compression = 'compression'
     app.locals.uses.push('compression()')
-    pkg.dependencies.compression = '^1.8.2'
+    pkg.dependencies.compression = VERSIONS.compression
   }
 
   // Request logger
   app.locals.modules.logger = 'morgan'
   app.locals.uses.push("logger('dev')")
-  pkg.dependencies.morgan = '^1.12.1'
+  pkg.dependencies.morgan = VERSIONS.morgan
 
   // Body parsers
   app.locals.uses.push('express.json()')
@@ -187,7 +190,7 @@ function createApplication (name, dir, options, done) {
   if (options.cookies) {
     app.locals.modules.cookieParser = 'cookie-parser'
     app.locals.uses.push('cookieParser()')
-    pkg.dependencies['cookie-parser'] = '^1.4.7'
+    pkg.dependencies['cookie-parser'] = VERSIONS['cookie-parser']
   }
 
   if (dir !== '.') {
@@ -231,8 +234,8 @@ function createApplication (name, dir, options, done) {
     copyTemplateMulti('views', dir + '/views', options.view)
 
     app.locals.view = { engine: options.view }
-    pkg.dependencies['http-errors'] = '^2.0.1'
-    pkg.dependencies[view.pkg] = view.version
+    pkg.dependencies['http-errors'] = VERSIONS['http-errors']
+    pkg.dependencies[view.pkg] = VERSIONS[view.pkg]
   } else {
     // Copy extra public files
     copyTemplate('js/index.html', path.join(dir, 'public/index.html'))
@@ -249,14 +252,14 @@ function createApplication (name, dir, options, done) {
   // TypeScript type checking
   if (ts) {
     pkg.scripts.typecheck = 'tsc'
-    pkg.devDependencies.typescript = '^7.0.2'
-    pkg.devDependencies['@types/express'] = '^5.0.6'
-    pkg.devDependencies['@types/morgan'] = '^1.9.10'
-    pkg.devDependencies['@types/node'] = '^22.20.5'
+    const types = ['@types/express', '@types/morgan', '@types/node']
 
-    if (options.view) pkg.devDependencies['@types/http-errors'] = '^2.0.5'
-    if (options.compression) pkg.devDependencies['@types/compression'] = '^1.8.1'
-    if (options.cookies) pkg.devDependencies['@types/cookie-parser'] = '^1.4.10'
+    if (options.view) types.push('@types/http-errors')
+    if (options.compression) types.push('@types/compression')
+    if (options.cookies) types.push('@types/cookie-parser')
+
+    pkg.devDependencies.typescript = VERSIONS.typescript
+    for (const type of types) pkg.devDependencies[type] = VERSIONS[type]
 
     write(path.join(dir, 'tsconfig.json'), JSON.stringify(TSCONFIG, null, 2) + '\n')
   }

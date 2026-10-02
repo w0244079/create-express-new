@@ -89,6 +89,19 @@ This generator can also be further configured with the following command line fl
     -f, --force          force on non-empty directory
     -h, --help           output usage information
 
+## Maintaining generated dependency versions
+
+The versions of the packages that generated apps depend on live in
+[`templates/versions.json`](templates/versions.json). Dependabot does not cover them, so check them with:
+
+```bash
+$ npm run versions              # report versions that are behind, or have a new major
+$ npm run versions -- --update  # raise each version to the newest release in its major
+```
+
+New major versions are reported but never applied automatically; review the templates before changing the range.
+Packages listed under `hold` are intentionally kept on an older major. The `versions` workflow runs the check monthly.
+
 ## License
 
 [MIT](LICENSE)
