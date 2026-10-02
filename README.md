@@ -20,7 +20,8 @@ $ npx express-generator-modern
 ```
 
 The wizard asks for the project directory, whether you are building a web app or a JSON API, the
-view engine, the language (JavaScript, TypeScript or CommonJS), optional middleware and a `.gitignore`.
+view engine, the language (JavaScript, TypeScript or CommonJS), optional middleware, extras (a
+Dockerfile and ESLint) and a `.gitignore`.
 It then shows the equivalent command, so you can repeat the setup or use it in scripts, and offers to
 run `npm install`.
 
@@ -88,6 +89,10 @@ server errors (5xx) only say `Internal Server Error` in production, so internal 
 In development, every error includes its message and stack trace. Express runs in development mode
 unless `NODE_ENV` is set, so set `NODE_ENV=production` when you deploy.
 
+API apps also get a `GET /health` endpoint that responds with `{ "status": "ok" }`, for load balancers
+and container health checks. It is defined before the middleware, so it stays fast and out of the
+request logs.
+
 `--api` works with `--cjs`, `--ts` and the optional middleware, but not with `--view`.
 
 ### Module formats
@@ -121,6 +126,30 @@ files with `--api`). Add more with:
 - `--helmet`: [helmet](https://helmetjs.github.io/) security headers
 - `--compression`: gzip/brotli response [compression](https://github.com/expressjs/compression)
 - `--cookies`: [cookie-parser](https://github.com/expressjs/cookie-parser), for reading `req.cookies`
+- `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins. Any origin is
+  allowed by default; set `CORS_ORIGIN` (see `.env.example`) to allow only your front end.
+
+### Docker
+
+`--docker` adds a `Dockerfile` and `.dockerignore` for a production image, and the `/health` endpoint.
+Install dependencies first, as the image is built with `npm ci` from `package-lock.json`:
+
+```bash
+$ npm install
+$ docker build -t my-app .
+$ docker run -p 3000:3000 my-app
+```
+
+The image is based on `node:24-slim`, installs only production dependencies, runs the app as the
+unprivileged `node` user with `NODE_ENV=production`, checks `/health` with a `HEALTHCHECK`, and runs
+`node` directly so it receives `SIGTERM` and shuts down gracefully. `.env` files are not copied into the
+image; set environment variables with your container platform instead.
+
+### Linting
+
+`--lint` adds [ESLint](https://eslint.org/) with its recommended rules and an `npm run lint` script. With
+`--ts` it also adds [typescript-eslint](https://typescript-eslint.io/); as typescript-eslint does not
+support TypeScript 7 yet, these apps use TypeScript 6.
 
 ## Command Line Options
 
@@ -132,6 +161,9 @@ files with `--api`). Add more with:
         --helmet         add helmet middleware for security headers
         --compression    add compression middleware for gzip/brotli responses
         --cookies        add cookie-parser middleware
+        --cors           add cors middleware for cross-origin requests
+        --docker         add a Dockerfile and a /health endpoint
+        --lint           add ESLint and an npm run lint script
         --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
         --version        output the version number
@@ -149,7 +181,9 @@ This fork started from `express-generator` 4.16.1.
 - An interactive wizard when run without arguments in a terminal, which shows the equivalent command
 - A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects
 - Request logs are skipped while the generated tests run, keeping `npm test` output readable
-- `--helmet`, `--compression` and `--cookies` options for opt-in middleware
+- `--helmet`, `--compression`, `--cookies` and `--cors` options for opt-in middleware
+- `--docker` for a production Dockerfile, and a `/health` endpoint for APIs and containers
+- `--lint` for ESLint, including typescript-eslint for TypeScript apps
 - An `npm run dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run with `npm test`
 - Graceful shutdown on SIGINT and SIGTERM in `bin/www.js`

@@ -1,0 +1,28 @@
+import js from '@eslint/js';
+import { defineConfig } from 'eslint/config';
+import globals from 'globals';
+<% if (ts) { -%>
+import tseslint from 'typescript-eslint';
+<% } -%>
+
+export default defineConfig([
+  js.configs.recommended,
+<% if (ts) { -%>
+  tseslint.configs.recommended,
+<% } -%>
+<% if (!esm) { -%>
+  {
+    files: ['**/*.js'],
+    languageOptions: { sourceType: 'commonjs' }
+  },
+<% } -%>
+  {
+    languageOptions: {
+      globals: globals.node
+    },
+    rules: {
+      // Express error handlers need all four arguments, even when next is unused
+      '<%- ts ? '@typescript-eslint/' : '' %>no-unused-vars': ['error', { argsIgnorePattern: '^next$' }]
+    }
+  }
+]);

@@ -352,6 +352,12 @@ describe('express(1)', function () {
           .expect(200, { message: 'Welcome to Express' }, done)
       })
 
+      it('should respond to the health check', function (done) {
+        request(this.app)
+          .get('/health')
+          .expect(200, { status: 'ok' }, done)
+      })
+
       it('should list users as JSON', function (done) {
         request(this.app)
           .get('/users')
@@ -595,6 +601,94 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--lint', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--lint'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 21)
+        assert.notStrictEqual(ctx.files.indexOf('eslint.config.js'), -1)
+        done()
+      })
+    })
+
+    it('should have a lint script and ESLint', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      assert.strictEqual(pkg.scripts.lint, 'eslint .')
+      assert.deepStrictEqual(Object.keys(pkg.devDependencies), ['@eslint/js', 'eslint', 'globals'])
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass npm run lint', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'lint', done)
+    })
+
+    describe('with --cjs', function () {
+      const ctx0 = setupTestEnvironment('lint with cjs')
+
+      it('should create an ES module config', function (done) {
+        run(ctx0.dir, ['--lint', '--cjs', '--view', 'ejs'], function (err, stdout) {
+          if (err) return done(err)
+          assert.notStrictEqual(utils.parseCreatedFiles(stdout, ctx0.dir).indexOf('eslint.config.mjs'), -1)
+          done()
+        })
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx0.dir, done)
+      })
+
+      it('should pass npm run lint', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx0.dir, 'lint', done)
+      })
+    })
+
+    describe('with --ts', function () {
+      const ctx1 = setupTestEnvironment('lint with ts')
+
+      it('should create basic app', function (done) {
+        run(ctx1.dir, ['--lint', '--ts', '--api', '--cors', '--helmet', '--compression', '--cookies'], function (err) {
+          done(err)
+        })
+      })
+
+      it('should use typescript-eslint with TypeScript 6', function () {
+        const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx1.dir, 'package.json'), 'utf8'))
+        assert.strictEqual(typeof pkg.devDependencies['typescript-eslint'], 'string')
+        assert.strictEqual(pkg.devDependencies.typescript, VERSIONS['typescript@6'])
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx1.dir, done)
+      })
+
+      it('should pass npm run lint', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx1.dir, 'lint', done)
+      })
+
+      it('should pass npm run typecheck', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx1.dir, 'typecheck', done)
+      })
+
+      it('should pass npm test', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx1.dir, 'test', done)
+      })
+    })
+  })
+
   describe('--no-git', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -615,6 +709,126 @@ describe('express(1)', function () {
         if (err) return done(err)
         assert.notStrictEqual(utils.parseCreatedFiles(stdout, dir).indexOf('.gitignore'), -1)
         done()
+      })
+    })
+  })
+
+  describe('--cors', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--cors'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 20)
+        done()
+      })
+    })
+
+    it('should use cors middleware', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.strictEqual(typeof pkg.dependencies.cors, 'string')
+      assert.ok(/^import cors from 'cors';$/m.test(contents))
+      assert.ok(/^app\.use\(cors\(\{ origin: process\.env\.CORS_ORIGIN \|\| '\*' \}\)\);$/m.test(contents))
+    })
+
+    it('should document CORS_ORIGIN in .env.example', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, '.env.example'), 'utf8')
+      assert.ok(/^# CORS_ORIGIN=/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should allow cross-origin requests', function (done) {
+        request(this.app)
+          .get('/')
+          .set('Origin', 'https://example.com')
+          .expect('Access-Control-Allow-Origin', '*')
+          .expect(200, done)
+      })
+    })
+  })
+
+  describe('--docker', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--docker'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 22)
+        done()
+      })
+    })
+
+    it('should have Docker files', function () {
+      assert.notStrictEqual(ctx.files.indexOf('Dockerfile'), -1)
+      assert.notStrictEqual(ctx.files.indexOf('.dockerignore'), -1)
+    })
+
+    it('should run the app as the node user with a health check', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
+      assert.ok(/^RUN npm ci --omit=dev$/m.test(contents))
+      assert.ok(/^COPY --chown=node:node \. \.$/m.test(contents))
+      assert.ok(/^USER node$/m.test(contents))
+      assert.ok(/^HEALTHCHECK /m.test(contents))
+      assert.ok(/^CMD \["node", "\.\/bin\/www\.js"\]$/m.test(contents))
+    })
+
+    it('should keep secrets and dependencies out of the image', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, '.dockerignore'), 'utf8')
+      assert.ok(/^node_modules$/m.test(contents))
+      assert.ok(/^\.env$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass npm test', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'test', done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should respond to the health check', function (done) {
+        request(this.app)
+          .get('/health')
+          .expect(200, { status: 'ok' }, done)
       })
     })
   })

@@ -38,6 +38,14 @@ const <%- variable %> = require('<%- localModules[variable] %>');
 
 const app = express();
 
+<% if (health) { -%>
+// health check for load balancers and containers, defined before the
+// middleware so it stays fast and out of the request logs
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+<% } -%>
 <% if (view) { -%>
 // view engine setup
 <% if (view.render) { -%>

@@ -45,10 +45,13 @@ const OPTIONS = {
   cjs: { type: 'boolean' },
   compression: { type: 'boolean' },
   cookies: { type: 'boolean' },
+  cors: { type: 'boolean' },
+  docker: { type: 'boolean' },
   force: { type: 'boolean', short: 'f' },
   git: { type: 'boolean' },
   helmet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
+  lint: { type: 'boolean' },
   'no-git': { type: 'boolean' },
   'no-view': { type: 'boolean' },
   ts: { type: 'boolean' },
@@ -177,6 +180,8 @@ function createApplication (name, dir, options, done) {
     template.locals.api = api
     template.locals.esm = esm
     template.locals.ext = ext
+    // a health check for load balancers and containers
+    template.locals.health = api || Boolean(options.docker)
     template.locals.ts = ts
   }
 
@@ -201,6 +206,13 @@ function createApplication (name, dir, options, done) {
     app.locals.modules.compression = 'compression'
     app.locals.uses.push('compression()')
     pkg.dependencies.compression = VERSIONS.compression
+  }
+
+  // Cross-origin requests
+  if (options.cors) {
+    app.locals.modules.cors = 'cors'
+    app.locals.uses.push("cors({ origin: process.env.CORS_ORIGIN || '*' })")
+    pkg.dependencies.cors = VERSIONS.cors
   }
 
   // Request logger
@@ -287,7 +299,18 @@ function createApplication (name, dir, options, done) {
   }
 
   // Environment variables
-  copyTemplate('js/env.example', path.join(dir, '.env.example'))
+  const envExample = loadTemplate('js/env.example')
+  envExample.locals.cors = Boolean(options.cors)
+  write(path.join(dir, '.env.example'), envExample.render())
+
+  // Container image
+  if (options.docker) {
+    const dockerfile = loadTemplate('js/Dockerfile')
+    dockerfile.locals.name = name
+    dockerfile.locals.www = www
+    write(path.join(dir, 'Dockerfile'), dockerfile.render())
+    copyTemplate('js/dockerignore', path.join(dir, '.dockerignore'))
+  }
 
   if (options.git) {
     copyTemplate('js/gitignore', path.join(dir, '.gitignore'))
@@ -301,11 +324,31 @@ function createApplication (name, dir, options, done) {
     if (app.locals.httpErrors) types.push('@types/http-errors')
     if (options.compression) types.push('@types/compression')
     if (options.cookies) types.push('@types/cookie-parser')
+    if (options.cors) types.push('@types/cors')
 
     pkg.devDependencies.typescript = VERSIONS.typescript
     for (const type of types) pkg.devDependencies[type] = VERSIONS[type]
 
     write(path.join(dir, 'tsconfig.json'), JSON.stringify(TSCONFIG, null, 2) + '\n')
+  }
+
+  // Linting
+  if (options.lint) {
+    const config = loadTemplate('js/eslint.config.js')
+    config.locals.esm = esm
+    config.locals.ts = ts
+
+    // CommonJS apps need the .mjs extension for the ES module config
+    write(path.join(dir, esm ? 'eslint.config.js' : 'eslint.config.mjs'), config.render())
+
+    pkg.scripts.lint = 'eslint .'
+    for (const dep of ['eslint', '@eslint/js', 'globals']) pkg.devDependencies[dep] = VERSIONS[dep]
+
+    if (ts) {
+      // typescript-eslint does not support TypeScript 7 yet
+      pkg.devDependencies['typescript-eslint'] = VERSIONS['typescript-eslint']
+      pkg.devDependencies.typescript = VERSIONS['typescript@6']
+    }
   }
 
   // sort dependencies like npm(1)
@@ -638,6 +681,9 @@ function usage () {
   console.log('        --helmet         add helmet middleware for security headers')
   console.log('        --compression    add compression middleware for gzip/brotli responses')
   console.log('        --cookies        add cookie-parser middleware')
+  console.log('        --cors           add cors middleware for cross-origin requests')
+  console.log('        --docker         add a Dockerfile and a /health endpoint')
+  console.log('        --lint           add ESLint and an npm run lint script')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('        --version        output the version number')

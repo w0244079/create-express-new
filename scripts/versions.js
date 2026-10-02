@@ -6,6 +6,7 @@
 //
 // New major versions are only reported, as they need a manual review of the
 // generated templates before the range in templates/versions.json is changed.
+// An entry named `<package>@<major>` pins that package to that major.
 
 import { exec } from 'node:child_process'
 import fs from 'node:fs'
@@ -21,7 +22,9 @@ const config = JSON.parse(fs.readFileSync(FILE, 'utf-8'))
 const hold = config.hold || {}
 
 const results = await Promise.all(Object.entries(config.versions).map(async ([name, range]) => {
-  const { stdout } = await run(`npm view ${name} versions dist-tags.latest --json`)
+  // `typescript@6` checks typescript within major 6
+  const pkg = name.replace(/(.)@\d+$/, '$1')
+  const { stdout } = await run(`npm view ${pkg} versions dist-tags.latest --json`)
   const info = JSON.parse(stdout)
   const floor = parse(range.replace(/^\^/, ''))
   const versions = info.versions.filter((v) => STABLE.test(v)).map(parse)

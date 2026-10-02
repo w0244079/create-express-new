@@ -21,7 +21,7 @@ describe('wizard', function () {
   })
 
   it('should default to a pug web app with .gitignore and install', function () {
-    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]).then(function (result) {
+    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]).then(function (result) {
       assert.deepStrictEqual(result.options, {
         _: ['my-app'],
         '!': [],
@@ -29,10 +29,13 @@ describe('wizard', function () {
         cjs: false,
         compression: false,
         cookies: false,
+        cors: false,
+        docker: false,
         force: false,
         git: true,
         helmet: false,
         install: true,
+        lint: false,
         ts: false,
         view: 'pug'
       })
@@ -45,7 +48,8 @@ describe('wizard', function () {
       'm', 'y', '-', 'a', 'p', 'x', '\x7f', 'i', ENTER, // directory, with a backspace
       DOWN, ENTER, // JSON API
       DOWN, ENTER, // TypeScript
-      ' ', DOWN, DOWN, ' ', ENTER, // helmet and cookie-parser
+      ' ', DOWN, DOWN, ' ', DOWN, ' ', ENTER, // helmet, cookie-parser and cors
+      ' ', DOWN, ' ', ENTER, // Dockerfile and ESLint
       'n', // no .gitignore
       'n', // no install
       'y' // create
@@ -61,15 +65,18 @@ describe('wizard', function () {
       assert.strictEqual(options.helmet, true)
       assert.strictEqual(options.compression, false)
       assert.strictEqual(options.cookies, true)
+      assert.strictEqual(options.cors, true)
+      assert.strictEqual(options.docker, true)
+      assert.strictEqual(options.lint, true)
       assert.strictEqual(options.git, false)
       assert.strictEqual(options.install, false)
       assert.ok(!result.output.includes('View engine'), 'should not ask for a view engine')
-      assert.ok(result.output.includes('npx express-generator-modern my-api --api --ts --helmet --cookies --no-git'))
+      assert.ok(result.output.includes('npx express-generator-modern my-api --api --ts --helmet --cookies --cors --docker --lint --no-git'))
     })
   })
 
   it('should ask for a CommonJS web app with a view engine', function () {
-    const keys = ['w', 'e', 'b', ENTER, ENTER, DOWN, ENTER, DOWN, DOWN, ENTER, ENTER, ENTER, 'n', ENTER]
+    const keys = ['w', 'e', 'b', ENTER, ENTER, DOWN, ENTER, DOWN, DOWN, ENTER, ENTER, ENTER, ENTER, 'n', ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.view, 'ejs')
@@ -82,7 +89,7 @@ describe('wizard', function () {
     fs.mkdirSync(path.join(cwd, 'busy'))
     fs.writeFileSync(path.join(cwd, 'busy', 'file.txt'), '')
 
-    const keys = ['b', 'u', 's', 'y', ENTER, 'n', 'n', 'e', 'w', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'u', 's', 'y', ENTER, 'n', 'n', 'e', 'w', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['new'])
@@ -92,7 +99,7 @@ describe('wizard', function () {
   })
 
   it('should force a non-empty directory when confirmed', function () {
-    const keys = ['b', 'u', 's', 'y', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'u', 's', 'y', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['busy'])
@@ -110,7 +117,7 @@ describe('wizard', function () {
   })
 
   it('should cancel when declining to create the app', function () {
-    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n']).then(function () {
+    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n']).then(function () {
       throw new Error('expected the wizard to be cancelled')
     }, function (err) {
       assert.ok(err instanceof CancelError)
