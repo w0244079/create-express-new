@@ -1,23 +1,19 @@
 #!/usr/bin/env node
 
-var ejs = require('ejs')
-var fs = require('fs')
-var minimatch = require('minimatch')
-var mkdirp = require('mkdirp')
-var parseArgs = require('minimist')
-var path = require('path')
-var readline = require('readline')
-var sortedObject = require('sorted-object')
-var util = require('util')
+import ejs from 'ejs'
+import fs from 'node:fs'
+import path from 'node:path'
+import readline from 'node:readline'
+import util from 'node:util'
 
-var MODE_0666 = parseInt('0666', 8)
-var MODE_0755 = parseInt('0755', 8)
-var TEMPLATE_DIR = path.join(__dirname, '..', 'templates')
-var VERSION = require('../package').version
+const MODE_0666 = 0o666
+const MODE_0755 = 0o755
+const TEMPLATE_DIR = path.join(import.meta.dirname, '..', 'templates')
+const VERSION = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8')).version
 
 // supported stylesheet engines, compiled by the generated app's "build:css"
 // script and recompiled on change by its "dev:css" script
-var CSS_ENGINES = {
+const CSS_ENGINES = {
   less: {
     ext: 'less',
     pkg: 'less',
@@ -51,49 +47,41 @@ var CSS_ENGINES = {
 }
 
 // supported view engines, keyed by template file extension
-var VIEW_ENGINES = {
+const VIEW_ENGINES = {
   ejs: { pkg: 'ejs', version: '^6.0.1' },
   hbs: { pkg: 'hbs', version: '^4.3.1' },
   pug: { pkg: 'pug', version: '^3.0.4' },
   twig: { pkg: 'twig', version: '^3.0.0' }
 }
 
-// parse args
-var unknown = []
-var args = parseArgs(process.argv.slice(2), {
-  alias: {
-    c: 'css',
-    e: 'ejs',
-    f: 'force',
-    h: 'help',
-    v: 'view'
-  },
-  boolean: ['ejs', 'force', 'git', 'hbs', 'help', 'pug', 'version'],
-  default: { css: true, view: true },
-  string: ['css', 'view'],
-  unknown: function (s) {
-    if (s.charAt(0) === '-') {
-      unknown.push(s)
-    }
-  }
-})
-
-args['!'] = unknown
+// command line options
+const OPTIONS = {
+  css: { type: 'string', short: 'c' },
+  ejs: { type: 'boolean', short: 'e' },
+  force: { type: 'boolean', short: 'f' },
+  git: { type: 'boolean' },
+  hbs: { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+  'no-view': { type: 'boolean' },
+  pug: { type: 'boolean' },
+  version: { type: 'boolean' },
+  view: { type: 'string', short: 'v' }
+}
 
 // run
-main(args, exit)
+main(parseOptions(process.argv.slice(2)), exit)
 
 /**
  * Prompt for confirmation on STDOUT/STDIN
  */
 
 function confirm (msg, callback) {
-  var rl = readline.createInterface({
+  const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
   })
 
-  rl.question(msg, function (input) {
+  rl.question(msg, (input) => {
     rl.close()
     callback(/^y|yes|ok|true$/i.test(input))
   })
@@ -108,13 +96,13 @@ function copyTemplate (from, to, mode) {
 }
 
 /**
- * Copy multiple files from template directory.
+ * Copy all files with the given extension from template directory.
  */
 
-function copyTemplateMulti (fromDir, toDir, nameGlob) {
+function copyTemplateMulti (fromDir, toDir, ext) {
   fs.readdirSync(path.join(TEMPLATE_DIR, fromDir))
-    .filter(minimatch.filter(nameGlob, { matchBase: true }))
-    .forEach(function (name) {
+    .filter((name) => path.extname(name) === '.' + ext)
+    .forEach((name) => {
       copyTemplate(path.join(fromDir, name), path.join(toDir, name))
     })
 }
@@ -132,8 +120,8 @@ function createApplication (name, dir, options, done) {
   console.log()
 
   // Package
-  var pkg = {
-    name: name,
+  const pkg = {
+    name,
     version: '0.0.0',
     private: true,
     type: 'module',
@@ -150,7 +138,7 @@ function createApplication (name, dir, options, done) {
   }
 
   // JavaScript
-  var app = loadTemplate('js/app.js')
+  const app = loadTemplate('js/app.js')
 
   // App modules
   app.locals.localModules = Object.create(null)
@@ -182,11 +170,11 @@ function createApplication (name, dir, options, done) {
   mkdir(dir, 'public/stylesheets')
 
   // CSS Engine support
-  var css = CSS_ENGINES[options.css]
+  const css = CSS_ENGINES[options.css]
 
   if (css) {
     // compile stylesheets before the app starts
-    copyTemplateMulti('css', dir + '/public/stylesheets', '*.' + css.ext)
+    copyTemplateMulti('css', dir + '/public/stylesheets', css.ext)
     pkg.scripts['build:css'] = css.build
     pkg.scripts.prestart = 'npm run build:css'
     pkg.dependencies[css.pkg] = css.version
@@ -198,7 +186,7 @@ function createApplication (name, dir, options, done) {
     pkg.devDependencies.concurrently = '^10.0.5'
     Object.assign(pkg.devDependencies, css.devDependencies)
   } else {
-    copyTemplateMulti('css', dir + '/public/stylesheets', '*.css')
+    copyTemplateMulti('css', dir + '/public/stylesheets', 'css')
 
     // restart the app on change
     pkg.scripts.dev = 'node --watch ./bin/www.js'
@@ -206,7 +194,7 @@ function createApplication (name, dir, options, done) {
 
   // copy route templates
   mkdir(dir, 'routes')
-  copyTemplateMulti('js/routes', dir + '/routes', '*.js')
+  copyTemplateMulti('js/routes', dir + '/routes', 'js')
 
   // Index router mount
   app.locals.localModules.indexRouter = './routes/index.js'
@@ -218,11 +206,11 @@ function createApplication (name, dir, options, done) {
 
   // Template support
   if (options.view) {
-    var view = VIEW_ENGINES[options.view]
+    const view = VIEW_ENGINES[options.view]
 
     // Copy view templates
     mkdir(dir, 'views')
-    copyTemplateMulti('views', dir + '/views', '*.' + options.view)
+    copyTemplateMulti('views', dir + '/views', options.view)
 
     app.locals.view = { engine: options.view }
     pkg.dependencies['http-errors'] = '^2.0.1'
@@ -254,7 +242,7 @@ function createApplication (name, dir, options, done) {
   mkdir(dir, 'bin')
   copyTemplate('js/www.js', path.join(dir, 'bin/www.js'), MODE_0755)
 
-  var prompt = launchedFromCmd() ? '>' : '$'
+  const prompt = launchedFromCmd() ? '>' : '$'
 
   if (dir !== '.') {
     console.log()
@@ -271,7 +259,6 @@ function createApplication (name, dir, options, done) {
   console.log()
   console.log('   run the app in development, restarting on change:')
   console.log('     %s npm run dev', prompt)
-
   console.log()
 
   done(0)
@@ -298,7 +285,7 @@ function createAppName (pathName) {
  */
 
 function emptyDirectory (dir, fn) {
-  fs.readdir(dir, function (err, files) {
+  fs.readdir(dir, (err, files) => {
     if (err && err.code !== 'ENOENT') throw err
     fn(!files || !files.length)
   })
@@ -312,7 +299,7 @@ function emptyDirectory (dir, fn) {
 
 function error (message) {
   console.error()
-  message.split('\n').forEach(function (line) {
+  message.split('\n').forEach((line) => {
     console.error('  error: %s', line)
   })
   console.error()
@@ -330,12 +317,10 @@ function exit (code) {
     if (!(draining--)) process.exit(code)
   }
 
-  var draining = 0
-  var streams = [process.stdout, process.stderr]
+  let draining = 0
+  const streams = [process.stdout, process.stderr]
 
-  exit.exited = true
-
-  streams.forEach(function (stream) {
+  streams.forEach((stream) => {
     // submit empty write request and wait for completion
     draining += 1
     stream.write('', done)
@@ -358,8 +343,8 @@ function launchedFromCmd () {
  */
 
 function loadTemplate (name) {
-  var contents = fs.readFileSync(path.join(__dirname, '..', 'templates', (name + '.ejs')), 'utf-8')
-  var locals = Object.create(null)
+  const contents = fs.readFileSync(path.join(TEMPLATE_DIR, name + '.ejs'), 'utf-8')
+  const locals = Object.create(null)
 
   function render () {
     return ejs.render(contents, locals, {
@@ -368,8 +353,8 @@ function loadTemplate (name) {
   }
 
   return {
-    locals: locals,
-    render: render
+    locals,
+    render
   }
 }
 
@@ -383,10 +368,10 @@ function main (options, done) {
     usage()
     error('unknown option `' + options['!'][0] + "'")
     done(1)
-  } else if (args.help) {
+  } else if (options.help) {
     usage()
     done(0)
-  } else if (args.version) {
+  } else if (options.version) {
     version()
     done(0)
   } else if (options.css === '') {
@@ -399,10 +384,10 @@ function main (options, done) {
     done(1)
   } else {
     // Path
-    var destinationPath = options._[0] || '.'
+    const destinationPath = options._[0] || '.'
 
     // App name
-    var appName = createAppName(path.resolve(destinationPath)) || 'hello-world'
+    const appName = createAppName(path.resolve(destinationPath)) || 'hello-world'
 
     // View engine
     if (options.view === true) {
@@ -452,11 +437,11 @@ function main (options, done) {
     }
 
     // Generate application
-    emptyDirectory(destinationPath, function (empty) {
+    emptyDirectory(destinationPath, (empty) => {
       if (empty || options.force) {
         createApplication(appName, destinationPath, options, done)
       } else {
-        confirm('destination is not empty, continue? [y/N] ', function (ok) {
+        confirm('destination is not empty, continue? [y/N] ', (ok) => {
           if (ok) {
             process.stdin.destroy()
             createApplication(appName, destinationPath, options, done)
@@ -478,10 +463,59 @@ function main (options, done) {
  */
 
 function mkdir (base, dir) {
-  var loc = path.join(base, dir)
+  const loc = path.join(base, dir)
 
   console.log('   \x1b[36mcreate\x1b[0m : ' + loc + path.sep)
-  mkdirp.sync(loc, MODE_0755)
+  fs.mkdirSync(loc, { recursive: true, mode: MODE_0755 })
+}
+
+/**
+ * Parse command line arguments.
+ *
+ * Engine options default to `true` when not given and are `''` when given
+ * without an argument; `_` holds positionals and `!` holds unknown options.
+ *
+ * @param {string[]} argv
+ */
+
+function parseOptions (argv) {
+  const { values, positionals, tokens } = util.parseArgs({
+    args: argv,
+    options: OPTIONS,
+    allowPositionals: true,
+    strict: false,
+    tokens: true
+  })
+
+  const options = { css: true, view: true, ...values, _: positionals, '!': [] }
+
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue
+
+    if (!Object.hasOwn(OPTIONS, token.name)) {
+      options['!'].push(token.rawName)
+    } else if (OPTIONS[token.name].type === 'string' &&
+      (token.value === undefined || (!token.inlineValue && token.value.startsWith('-')))) {
+      // argument missing, or the next option was taken as the argument
+      options[token.name] = ''
+    }
+  }
+
+  if (options['no-view']) {
+    options.view = false
+  }
+
+  return options
+}
+
+/**
+ * Sort object keys like npm(1).
+ *
+ * @param {object} obj
+ */
+
+function sortedObject (obj) {
+  return Object.fromEntries(Object.keys(obj).sort().map((key) => [key, obj[key]]))
 }
 
 /**
@@ -522,7 +556,7 @@ function version () {
 
 function warning (message) {
   console.error()
-  message.split('\n').forEach(function (line) {
+  message.split('\n').forEach((line) => {
     console.error('  warning: %s', line)
   })
   console.error()
