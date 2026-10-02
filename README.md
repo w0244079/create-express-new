@@ -291,7 +291,7 @@ publishing.
 [downloads-image]: https://img.shields.io/npm/dm/create-express-new.svg
 [node-image]: https://img.shields.io/node/v/create-express-new.svg
 [license-image]: https://img.shields.io/npm/l/create-express-new.svg
-[github-actions-ci-image]: https://github.com/w0244079/generator/actions/workflows/ci.yml/badge.svg
-[github-actions-ci-url]: https://github.com/w0244079/generator/actions/workflows/ci.yml
-[scorecard-image]: https://api.scorecard.dev/projects/github.com/w0244079/generator/badge
-[scorecard-url]: https://scorecard.dev/viewer/?uri=github.com/w0244079/generator
+[github-actions-ci-image]: https://github.com/w0244079/create-express-new/actions/workflows/ci.yml/badge.svg
+[github-actions-ci-url]: https://github.com/w0244079/create-express-new/actions/workflows/ci.yml
+[scorecard-image]: https://api.scorecard.dev/projects/github.com/w0244079/create-express-new/badge
+[scorecard-url]: https://scorecard.dev/viewer/?uri=github.com/w0244079/create-express-new

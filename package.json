@@ -27,9 +27,9 @@
     "web",
     "api"
   ],
-  "repository": "github:w0244079/generator",
-  "homepage": "https://github.com/w0244079/generator#readme",
-  "bugs": "https://github.com/w0244079/generator/issues",
+  "repository": "github:w0244079/create-express-new",
+  "homepage": "https://github.com/w0244079/create-express-new#readme",
+  "bugs": "https://github.com/w0244079/create-express-new/issues",
   "license": "MIT",
   "type": "module",
   "bin": {

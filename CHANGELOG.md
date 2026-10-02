@@ -44,5 +44,5 @@ the full list and a table for migrating commands.
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - The `debug` package and `DEBUG=...` start instructions
 
-[Unreleased]: https://github.com/w0244079/generator/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/w0244079/generator/releases/tag/v1.0.0
+[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/w0244079/create-express-new/releases/tag/v1.0.0
