@@ -41,14 +41,12 @@ describe('app', () => {
     server.close();
   });
 
-<% if (health) { -%>
   it('responds to GET /health', async () => {
     const res = await fetch(`${baseUrl}/health`);
     assert.strictEqual(res.status, 200);
     assert.deepStrictEqual(await res.json(), { status: 'ok' });
   });
 
-<% } -%>
 <% if (api) { -%>
   it('responds to GET /', async () => {
     const res = await fetch(`${baseUrl}/`);

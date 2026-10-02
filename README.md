@@ -70,6 +70,10 @@ my-app
 └── views/            # error, index and layout templates (pug by default)
 ```
 
+Every app has a `GET /health` endpoint that responds with `{ "status": "ok" }`, for load balancers,
+container health checks and uptime monitors. It is defined before the middleware, so it stays fast and
+out of the request logs.
+
 ### JSON APIs
 
 `--api` generates a JSON API instead of a web app: no views, static files or form parsing, and
@@ -88,10 +92,6 @@ Errors are always JSON, such as `{ "error": "Not Found" }`. Client errors (4xx) 
 server errors (5xx) only say `Internal Server Error` in production, so internal details are never sent.
 In development, every error includes its message and stack trace. Express runs in development mode
 unless `NODE_ENV` is set, so set `NODE_ENV=production` when you deploy.
-
-API apps also get a `GET /health` endpoint that responds with `{ "status": "ok" }`, for load balancers
-and container health checks. It is defined before the middleware, so it stays fast and out of the
-request logs.
 
 `--api` works with `--cjs`, `--ts` and the optional middleware, but not with `--view`.
 
@@ -132,7 +132,7 @@ files with `--api`). Add more with:
 
 ### Docker
 
-`--docker` adds a `Dockerfile` and `.dockerignore` for a production image, and the `/health` endpoint.
+`--docker` adds a `Dockerfile` and `.dockerignore` for a production image.
 Install dependencies first, as the image is built with `npm ci` from `package-lock.json`:
 
 ```bash
@@ -164,7 +164,7 @@ support TypeScript 7 yet, these apps use TypeScript 6.
         --compression    add compression middleware for gzip/brotli responses
         --cookies        add cookie-parser middleware
         --cors           add cors middleware for cross-origin requests
-        --docker         add a Dockerfile and a /health endpoint
+        --docker         add a Dockerfile for a production image
         --lint           add ESLint and an npm run lint script
         --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
@@ -184,7 +184,8 @@ This fork started from `express-generator` 4.16.1.
 - A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects
 - Request logs are skipped while the generated tests run, keeping `npm test` output readable
 - `--helmet`, `--compression`, `--cookies` and `--cors` options for opt-in middleware
-- `--docker` for a production Dockerfile, and a `/health` endpoint for APIs and containers
+- `--docker` for a production Dockerfile with a `HEALTHCHECK`
+- A `GET /health` endpoint for load balancers, container health checks and uptime monitors
 - `--lint` for ESLint, including typescript-eslint for TypeScript apps
 - An `npm run dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run with `npm test`

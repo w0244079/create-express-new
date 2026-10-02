@@ -131,6 +131,12 @@ describe('express(1)', function () {
           .expect(200, /<title>Express<\/title>/, done)
       })
 
+      it('should respond to the health check', function (done) {
+        request(this.app)
+          .get('/health')
+          .expect(200, { status: 'ok' }, done)
+      })
+
       it('should generate a 404', function (done) {
         request(this.app)
           .get('/does_not_exist')

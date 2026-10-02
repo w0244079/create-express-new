@@ -180,8 +180,6 @@ function createApplication (name, dir, options, done) {
     template.locals.api = api
     template.locals.esm = esm
     template.locals.ext = ext
-    // a health check for load balancers and containers
-    template.locals.health = api || Boolean(options.docker)
     template.locals.ts = ts
   }
 
@@ -683,7 +681,7 @@ function usage () {
   console.log('        --compression    add compression middleware for gzip/brotli responses')
   console.log('        --cookies        add cookie-parser middleware')
   console.log('        --cors           add cors middleware for cross-origin requests')
-  console.log('        --docker         add a Dockerfile and a /health endpoint')
+  console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and an npm run lint script')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
