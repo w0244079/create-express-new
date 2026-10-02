@@ -240,8 +240,6 @@ function createApplication (name, dir, options, done) {
 
   if (!api) {
     mkdir(dir, 'public')
-    mkdir(dir, 'public/javascripts')
-    mkdir(dir, 'public/images')
     mkdir(dir, 'public/stylesheets')
 
     // Stylesheet
