@@ -41,8 +41,14 @@ Start your Express.js app at `http://localhost:3000/`:
 $ npm start
 ```
 
-Generated apps are ES modules (`"type": "module"`) built on Express 5, and require Node.js 20.11 or newer.
+Generated apps are ES modules (`"type": "module"`) built on Express 5, and require Node.js 22 or newer.
 When a stylesheet engine is chosen, the stylesheets are compiled by the app's `build:css` script, which runs automatically before `npm start`.
+
+During development, run the app with automatic restarts (and stylesheet recompiling, when a stylesheet engine is chosen):
+
+```bash
+$ npm run dev
+```
 
 ## Command Line Options
 

@@ -15,31 +15,38 @@ var MODE_0755 = parseInt('0755', 8)
 var TEMPLATE_DIR = path.join(__dirname, '..', 'templates')
 var VERSION = require('../package').version
 
-// supported stylesheet engines, compiled by the generated app's "build:css" script
+// supported stylesheet engines, compiled by the generated app's "build:css"
+// script and recompiled on change by its "dev:css" script
 var CSS_ENGINES = {
   less: {
     ext: 'less',
     pkg: 'less',
     version: '^4.9.1',
-    build: 'lessc public/stylesheets/style.less public/stylesheets/style.css'
+    build: 'lessc public/stylesheets/style.less public/stylesheets/style.css',
+    // lessc has no watch mode, so rebuild whenever a .less file changes
+    watch: 'nodemon --watch public/stylesheets --ext less --exec "npm run build:css"',
+    devDependencies: { nodemon: '^3.1.14' }
   },
   sass: {
     ext: 'sass',
     pkg: 'sass',
     version: '^1.105.1',
-    build: 'sass public/stylesheets:public/stylesheets'
+    build: 'sass public/stylesheets:public/stylesheets',
+    watch: 'sass --watch public/stylesheets:public/stylesheets'
   },
   scss: {
     ext: 'scss',
     pkg: 'sass',
     version: '^1.105.1',
-    build: 'sass public/stylesheets:public/stylesheets'
+    build: 'sass public/stylesheets:public/stylesheets',
+    watch: 'sass --watch public/stylesheets:public/stylesheets'
   },
   stylus: {
     ext: 'styl',
     pkg: 'stylus',
     version: '^0.64.0',
-    build: 'stylus public/stylesheets'
+    build: 'stylus public/stylesheets',
+    watch: 'stylus --watch public/stylesheets'
   }
 }
 
@@ -134,11 +141,12 @@ function createApplication (name, dir, options, done) {
       start: 'node ./bin/www.js'
     },
     engines: {
-      node: '>=20.11'
+      node: '>=22'
     },
     dependencies: {
       express: '^5.2.1'
-    }
+    },
+    devDependencies: {}
   }
 
   // JavaScript
@@ -182,8 +190,18 @@ function createApplication (name, dir, options, done) {
     pkg.scripts['build:css'] = css.build
     pkg.scripts.prestart = 'npm run build:css'
     pkg.dependencies[css.pkg] = css.version
+
+    // restart the app and recompile stylesheets on change
+    pkg.scripts.dev = 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app'
+    pkg.scripts['dev:app'] = 'node --watch ./bin/www.js'
+    pkg.scripts['dev:css'] = css.watch
+    pkg.devDependencies.concurrently = '^10.0.5'
+    Object.assign(pkg.devDependencies, css.devDependencies)
   } else {
     copyTemplateMulti('css', dir + '/public/stylesheets', '*.css')
+
+    // restart the app on change
+    pkg.scripts.dev = 'node --watch ./bin/www.js'
   }
 
   // copy route templates
@@ -224,6 +242,11 @@ function createApplication (name, dir, options, done) {
 
   // sort dependencies like npm(1)
   pkg.dependencies = sortedObject(pkg.dependencies)
+  pkg.devDependencies = sortedObject(pkg.devDependencies)
+
+  if (!Object.keys(pkg.devDependencies).length) {
+    delete pkg.devDependencies
+  }
 
   // write files
   write(path.join(dir, 'app.js'), app.render())
@@ -244,8 +267,10 @@ function createApplication (name, dir, options, done) {
   console.log('     %s npm install', prompt)
   console.log()
   console.log('   run the app:')
-
   console.log('     %s npm start', prompt)
+  console.log()
+  console.log('   run the app in development, restarting on change:')
+  console.log('     %s npm run dev', prompt)
 
   console.log()
 

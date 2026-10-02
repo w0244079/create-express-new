@@ -45,6 +45,7 @@ describe('express(1)', function () {
 
     it('should provide start instructions', function () {
       assert.ok(/ npm start/.test(ctx.stdout))
+      assert.ok(/ npm run dev/.test(ctx.stdout))
       assert.ok(!/DEBUG=/.test(ctx.stdout))
     })
 
@@ -69,10 +70,11 @@ describe('express(1)', function () {
         '  "private": true,\n' +
         '  "type": "module",\n' +
         '  "scripts": {\n' +
-        '    "start": "node ./bin/www.js"\n' +
+        '    "start": "node ./bin/www.js",\n' +
+        '    "dev": "node --watch ./bin/www.js"\n' +
         '  },\n' +
         '  "engines": {\n' +
-        '    "node": ">=20.11"\n' +
+        '    "node": ">=22"\n' +
         '  },\n' +
         '  "dependencies": {\n' +
         '    "cookie-parser": "^1.4.7",\n' +
@@ -304,6 +306,15 @@ describe('express(1)', function () {
         assert.strictEqual(pkg.scripts['build:css'], 'lessc public/stylesheets/style.less public/stylesheets/style.css')
         assert.strictEqual(pkg.scripts.prestart, 'npm run build:css')
       })
+      it('should recompile stylesheets in development', function () {
+        var file = path.resolve(ctx.dir, 'package.json')
+        var contents = fs.readFileSync(file, 'utf8')
+        var pkg = JSON.parse(contents)
+        assert.strictEqual(pkg.scripts.dev, 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app')
+        assert.strictEqual(pkg.scripts['dev:app'], 'node --watch ./bin/www.js')
+        assert.strictEqual(pkg.scripts['dev:css'], 'nodemon --watch public/stylesheets --ext less --exec "npm run build:css"')
+        assert.deepStrictEqual(Object.keys(pkg.devDependencies), ['concurrently', 'nodemon'])
+      })
 
       it('should have installable dependencies', function (done) {
         this.timeout(NPM_INSTALL_TIMEOUT)
@@ -375,6 +386,15 @@ describe('express(1)', function () {
         assert.strictEqual(pkg.scripts['build:css'], 'sass public/stylesheets:public/stylesheets')
         assert.strictEqual(pkg.scripts.prestart, 'npm run build:css')
       })
+      it('should recompile stylesheets in development', function () {
+        var file = path.resolve(ctx.dir, 'package.json')
+        var contents = fs.readFileSync(file, 'utf8')
+        var pkg = JSON.parse(contents)
+        assert.strictEqual(pkg.scripts.dev, 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app')
+        assert.strictEqual(pkg.scripts['dev:app'], 'node --watch ./bin/www.js')
+        assert.strictEqual(pkg.scripts['dev:css'], 'sass --watch public/stylesheets:public/stylesheets')
+        assert.deepStrictEqual(Object.keys(pkg.devDependencies), ['concurrently'])
+      })
 
       it('should have installable dependencies', function (done) {
         this.timeout(NPM_INSTALL_TIMEOUT)
@@ -445,6 +465,15 @@ describe('express(1)', function () {
         var pkg = JSON.parse(contents)
         assert.strictEqual(pkg.scripts['build:css'], 'sass public/stylesheets:public/stylesheets')
         assert.strictEqual(pkg.scripts.prestart, 'npm run build:css')
+      })
+      it('should recompile stylesheets in development', function () {
+        var file = path.resolve(ctx.dir, 'package.json')
+        var contents = fs.readFileSync(file, 'utf8')
+        var pkg = JSON.parse(contents)
+        assert.strictEqual(pkg.scripts.dev, 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app')
+        assert.strictEqual(pkg.scripts['dev:app'], 'node --watch ./bin/www.js')
+        assert.strictEqual(pkg.scripts['dev:css'], 'sass --watch public/stylesheets:public/stylesheets')
+        assert.deepStrictEqual(Object.keys(pkg.devDependencies), ['concurrently'])
       })
 
       it('should have installable dependencies', function (done) {
@@ -549,6 +578,15 @@ describe('express(1)', function () {
         var pkg = JSON.parse(contents)
         assert.strictEqual(pkg.scripts['build:css'], 'stylus public/stylesheets')
         assert.strictEqual(pkg.scripts.prestart, 'npm run build:css')
+      })
+      it('should recompile stylesheets in development', function () {
+        var file = path.resolve(ctx.dir, 'package.json')
+        var contents = fs.readFileSync(file, 'utf8')
+        var pkg = JSON.parse(contents)
+        assert.strictEqual(pkg.scripts.dev, 'concurrently --kill-others --names css,app npm:dev:css npm:dev:app')
+        assert.strictEqual(pkg.scripts['dev:app'], 'node --watch ./bin/www.js')
+        assert.strictEqual(pkg.scripts['dev:css'], 'stylus --watch public/stylesheets')
+        assert.deepStrictEqual(Object.keys(pkg.devDependencies), ['concurrently'])
       })
 
       it('should have installable dependencies', function (done) {
