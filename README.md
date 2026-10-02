@@ -56,13 +56,13 @@ $ npm run dev
 This generator can also be further configured with the following command line flags.
 
         --version        output the version number
-    -e, --ejs            add ejs engine support
-        --pug            add pug engine support
-        --hbs            add handlebars engine support
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
     -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)
         --cjs            generate CommonJS modules instead of ES modules
+        --helmet         add helmet middleware for security headers
+        --compression    add compression middleware for gzip/brotli responses
+        --cookies        add cookie-parser middleware
         --git            add .gitignore
     -f, --force          force on non-empty directory
     -h, --help           output usage information

@@ -74,7 +74,6 @@ describe('express(1)', function () {
         '    "node": ">=22"\n' +
         '  },\n' +
         '  "dependencies": {\n' +
-        '    "cookie-parser": "^1.4.7",\n' +
         '    "express": "^5.2.1",\n' +
         '    "http-errors": "^2.0.1",\n' +
         '    "morgan": "^1.12.1",\n' +
@@ -354,6 +353,105 @@ describe('express(1)', function () {
         request(this.app)
           .get('/does_not_exist')
           .expect(404, /<h1>Not Found<\/h1>/, done)
+      })
+    })
+  })
+
+  describe('--compression', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--compression'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 16)
+        done()
+      })
+    })
+
+    it('should have compression in package dependencies', function () {
+      const file = path.resolve(ctx.dir, 'package.json')
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assert.strictEqual(typeof pkg.dependencies.compression, 'string')
+    })
+
+    it('should use compression middleware', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^import compression from 'compression';$/m.test(contents))
+      assert.ok(/^app\.use\(compression\(\)\);$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should negotiate response compression', function (done) {
+        request(this.app)
+          .get('/')
+          .set('Accept-Encoding', 'gzip')
+          .expect('Vary', /Accept-Encoding/)
+          .expect(200, /<title>Express<\/title>/, done)
+      })
+    })
+  })
+
+  describe('--cookies', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--cookies'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 16)
+        done()
+      })
+    })
+
+    it('should have cookie-parser in package dependencies', function () {
+      const file = path.resolve(ctx.dir, 'package.json')
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assert.strictEqual(typeof pkg.dependencies['cookie-parser'], 'string')
+    })
+
+    it('should use cookie-parser middleware', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^import cookieParser from 'cookie-parser';$/m.test(contents))
+      assert.ok(/^app\.use\(cookieParser\(\)\);$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should parse cookies', function () {
+      // echo the parsed cookies from the users route
+      const users = path.resolve(ctx.dir, 'routes/users.js')
+      const contents = fs.readFileSync(users, 'utf8')
+      fs.writeFileSync(users, contents.replace("res.send('respond with a resource')", 'res.json(req.cookies)'))
+
+      const file = path.resolve(ctx.dir, 'app.js')
+      return import(url.pathToFileURL(file).href).then(function (mod) {
+        return request(mod.default)
+          .get('/users')
+          .set('Cookie', 'name=value')
+          .expect(200, { name: 'value' })
       })
     })
   })
@@ -743,37 +841,6 @@ describe('express(1)', function () {
     })
   })
 
-  describe('--ejs', function () {
-    const ctx = setupTestEnvironment(this.fullTitle())
-
-    it('should create basic app with ejs templates', function (done) {
-      run(ctx.dir, ['--ejs'], function (err, stdout, warnings) {
-        if (err) return done(err)
-        ctx.warnings = warnings
-        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 15, 'should have 15 files')
-        done()
-      })
-    })
-
-    it('should warn about argument rename', function () {
-      assert.ok(ctx.warnings.some(function (warn) {
-        return warn === 'option `--ejs\' has been renamed to `--view=ejs\''
-      }))
-    })
-
-    it('should have basic files', function () {
-      assert.notStrictEqual(ctx.files.indexOf('bin/www.js'), -1, 'should have bin/www.js file')
-      assert.notStrictEqual(ctx.files.indexOf('app.js'), -1, 'should have app.js file')
-      assert.notStrictEqual(ctx.files.indexOf('package.json'), -1, 'should have package.json file')
-    })
-
-    it('should have ejs templates', function () {
-      assert.notStrictEqual(ctx.files.indexOf('views/error.ejs'), -1, 'should have views/error.ejs file')
-      assert.notStrictEqual(ctx.files.indexOf('views/index.ejs'), -1, 'should have views/index.ejs file')
-    })
-  })
-
   describe('--git', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -803,6 +870,63 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--helmet', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--helmet'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 16)
+        done()
+      })
+    })
+
+    it('should have helmet in package dependencies', function () {
+      const file = path.resolve(ctx.dir, 'package.json')
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assert.strictEqual(typeof pkg.dependencies.helmet, 'string')
+    })
+
+    it('should use helmet middleware', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^import helmet from 'helmet';$/m.test(contents))
+      assert.ok(/^app\.use\(helmet\(\)\);$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should send security headers', function (done) {
+        request(this.app)
+          .get('/')
+          .expect('X-Content-Type-Options', 'nosniff')
+          .expect('Content-Security-Policy', /default-src 'self'/)
+          .expect(function (res) {
+            assert.strictEqual(res.headers['x-powered-by'], undefined)
+          })
+          .expect(200, /<title>Express<\/title>/, done)
+      })
+    })
+  })
+
   describe('-h', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -816,45 +940,6 @@ describe('express(1)', function () {
         assert.ok(/--version/.test(stdout))
         done()
       })
-    })
-  })
-
-  describe('--hbs', function () {
-    const ctx = setupTestEnvironment(this.fullTitle())
-
-    it('should create basic app with hbs templates', function (done) {
-      run(ctx.dir, ['--hbs'], function (err, stdout, warnings) {
-        if (err) return done(err)
-        ctx.warnings = warnings
-        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
-        done()
-      })
-    })
-
-    it('should warn about argument rename', function () {
-      assert.ok(ctx.warnings.some(function (warn) {
-        return warn === 'option `--hbs\' has been renamed to `--view=hbs\''
-      }))
-    })
-
-    it('should have basic files', function () {
-      assert.notStrictEqual(ctx.files.indexOf('bin/www.js'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('app.js'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('package.json'), -1)
-    })
-
-    it('should have hbs in package dependencies', function () {
-      const file = path.resolve(ctx.dir, 'package.json')
-      const contents = fs.readFileSync(file, 'utf8')
-      const dependencies = JSON.parse(contents).dependencies
-      assert.ok(typeof dependencies.hbs === 'string')
-    })
-
-    it('should have hbs templates', function () {
-      assert.notStrictEqual(ctx.files.indexOf('views/error.hbs'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('views/index.hbs'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('views/layout.hbs'), -1)
     })
   })
 
@@ -874,15 +959,18 @@ describe('express(1)', function () {
     })
   })
 
-  describe('--hogan', function () {
+  describe('(removed options)', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
-    it('should exit with code 1', function (done) {
-      runRaw(ctx.dir, ['--hogan'], function (err, code, stdout, stderr) {
-        if (err) return done(err)
-        assert.strictEqual(code, 1)
-        assert.ok(/error: unknown option `--hogan'/.test(stderr))
-        done()
+    ;['-e', '--ejs', '--hbs', '--hogan', '--pug'].forEach(function (option) {
+      it('should reject ' + option + ' as an unknown option', function (done) {
+        runRaw(ctx.dir, [option], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(new RegExp('error: unknown option `' + option + "'").test(stderr))
+          assert.strictEqual(fs.readdirSync(ctx.dir).length, 0, 'should not create files')
+          done()
+        })
       })
     })
   })
@@ -940,45 +1028,6 @@ describe('express(1)', function () {
           .get('/does_not_exist')
           .expect(404, /Cannot GET \/does_not_exist/, done)
       })
-    })
-  })
-
-  describe('--pug', function () {
-    const ctx = setupTestEnvironment(this.fullTitle())
-
-    it('should create basic app with pug templates', function (done) {
-      run(ctx.dir, ['--pug'], function (err, stdout, warnings) {
-        if (err) return done(err)
-        ctx.warnings = warnings
-        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 16)
-        done()
-      })
-    })
-
-    it('should warn about argument rename', function () {
-      assert.ok(ctx.warnings.some(function (warn) {
-        return warn === 'option `--pug\' has been renamed to `--view=pug\''
-      }))
-    })
-
-    it('should have basic files', function () {
-      assert.notStrictEqual(ctx.files.indexOf('bin/www.js'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('app.js'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('package.json'), -1)
-    })
-
-    it('should have pug in package dependencies', function () {
-      const file = path.resolve(ctx.dir, 'package.json')
-      const contents = fs.readFileSync(file, 'utf8')
-      const dependencies = JSON.parse(contents).dependencies
-      assert.ok(typeof dependencies.pug === 'string')
-    })
-
-    it('should have pug templates', function () {
-      assert.notStrictEqual(ctx.files.indexOf('views/error.pug'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('views/index.pug'), -1)
-      assert.notStrictEqual(ctx.files.indexOf('views/layout.pug'), -1)
     })
   })
 

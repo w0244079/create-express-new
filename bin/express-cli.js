@@ -57,14 +57,14 @@ const VIEW_ENGINES = {
 // command line options
 const OPTIONS = {
   cjs: { type: 'boolean' },
+  compression: { type: 'boolean' },
+  cookies: { type: 'boolean' },
   css: { type: 'string', short: 'c' },
-  ejs: { type: 'boolean', short: 'e' },
   force: { type: 'boolean', short: 'f' },
   git: { type: 'boolean' },
-  hbs: { type: 'boolean' },
+  helmet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   'no-view': { type: 'boolean' },
-  pug: { type: 'boolean' },
   version: { type: 'boolean' },
   view: { type: 'string', short: 'v' }
 }
@@ -166,6 +166,20 @@ function createApplication (name, dir, options, done) {
   app.locals.mounts = []
   app.locals.uses = []
 
+  // Security headers
+  if (options.helmet) {
+    app.locals.modules.helmet = 'helmet'
+    app.locals.uses.push('helmet()')
+    pkg.dependencies.helmet = '^8.3.0'
+  }
+
+  // Response compression
+  if (options.compression) {
+    app.locals.modules.compression = 'compression'
+    app.locals.uses.push('compression()')
+    pkg.dependencies.compression = '^1.8.2'
+  }
+
   // Request logger
   app.locals.modules.logger = 'morgan'
   app.locals.uses.push("logger('dev')")
@@ -176,9 +190,11 @@ function createApplication (name, dir, options, done) {
   app.locals.uses.push('express.urlencoded({ extended: false })')
 
   // Cookie parser
-  app.locals.modules.cookieParser = 'cookie-parser'
-  app.locals.uses.push('cookieParser()')
-  pkg.dependencies['cookie-parser'] = '^1.4.7'
+  if (options.cookies) {
+    app.locals.modules.cookieParser = 'cookie-parser'
+    app.locals.uses.push('cookieParser()')
+    pkg.dependencies['cookie-parser'] = '^1.4.7'
+  }
 
   if (dir !== '.') {
     mkdir(dir, '.')
@@ -397,24 +413,6 @@ function main (options, done) {
     // App name
     const appName = createAppName(path.resolve(destinationPath)) || 'hello-world'
 
-    // View engine
-    if (options.view === true) {
-      if (options.ejs) {
-        options.view = 'ejs'
-        warning("option `--ejs' has been renamed to `--view=ejs'")
-      }
-
-      if (options.hbs) {
-        options.view = 'hbs'
-        warning("option `--hbs' has been renamed to `--view=hbs'")
-      }
-
-      if (options.pug) {
-        options.view = 'pug'
-        warning("option `--pug' has been renamed to `--view=pug'")
-      }
-    }
-
     // Default view engine
     if (options.view === true) {
       options.view = 'pug'
@@ -536,13 +534,13 @@ function usage () {
   console.log('')
   console.log('  Options:')
   console.log('')
-  console.log('    -e, --ejs            add ejs engine support')
-  console.log('        --pug            add pug engine support')
-  console.log('        --hbs            add handlebars engine support')
   console.log('    -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)')
   console.log('        --no-view        use static html instead of view engine')
   console.log('    -c, --css <engine>   add stylesheet <engine> support (less|sass|scss|stylus) (defaults to plain css)')
   console.log('        --cjs            generate CommonJS modules instead of ES modules')
+  console.log('        --helmet         add helmet middleware for security headers')
+  console.log('        --compression    add compression middleware for gzip/brotli responses')
+  console.log('        --cookies        add cookie-parser middleware')
   console.log('        --git            add .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('    --version            output the version number')
