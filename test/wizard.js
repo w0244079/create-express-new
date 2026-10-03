@@ -37,6 +37,7 @@ describe('wizard', function () {
         git: true,
         helmet: false,
         install: true,
+        keepConfig: false,
         lint: false,
         ts: false,
         view: 'pug'
@@ -107,6 +108,82 @@ describe('wizard', function () {
       assert.deepStrictEqual(result.options._, ['busy'])
       assert.strictEqual(result.options.force, true)
       assert.ok(result.output.includes('npm create express-new@latest busy -- --force'))
+    })
+  })
+
+  it('should accept the current directory', function () {
+    fs.writeFileSync(path.join(cwd, 'notes.txt'), '')
+
+    const keys = ['.', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.deepStrictEqual(result.options._, ['.'])
+      assert.strictEqual(result.options.force, true)
+      assert.ok(result.output.includes('. for the current directory'))
+      assert.ok(result.output.includes('The current directory is not empty'))
+      assert.ok(!result.output.includes('Existing files'), 'should not ask about files the app does not create')
+      assert.ok(result.output.includes('npm create express-new@latest . -- --force'))
+    }).finally(function () {
+      fs.rmSync(path.join(cwd, 'notes.txt'))
+    })
+  })
+
+  it('should list existing files and overwrite them', function () {
+    fs.mkdirSync(path.join(cwd, 'old'))
+    fs.writeFileSync(path.join(cwd, 'old', 'app.js'), '// mine\n')
+    fs.writeFileSync(path.join(cwd, 'old', '.env.example'), 'PORT=1\n')
+
+    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.ok(result.output.includes('These existing files will be overwritten'))
+      assert.ok(/\.env\.example\s+app\.js/.test(result.output))
+      assert.strictEqual(result.options.keepConfig, false)
+    })
+  })
+
+  it('should keep existing config files when chosen', function () {
+    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, DOWN, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.ok(result.output.includes('Keep my config files'))
+      assert.strictEqual(result.options.keepConfig, true)
+      assert.ok(result.output.includes('npm create express-new@latest old -- --force --keep-config'))
+    })
+  })
+
+  it('should forget keeping config files when going back to an app without them', function () {
+    fs.writeFileSync(path.join(cwd, 'old', 'app.js'), '// mine\n')
+    fs.writeFileSync(path.join(cwd, 'old', 'Dockerfile'), 'FROM node\n')
+    fs.rmSync(path.join(cwd, 'old', '.env.example'))
+
+    const keys = [
+      'o', 'l', 'd', ENTER, 'y', // directory
+      ENTER, ENTER, ENTER, ENTER, // kind, view, language, middleware
+      ' ', ENTER, // Dockerfile
+      ENTER, ENTER, // .gitignore, install
+      DOWN, ENTER, // keep the Dockerfile
+      LEFT, LEFT, LEFT, LEFT, ' ', ENTER, // back to extras, no Dockerfile
+      ENTER, ENTER, // .gitignore, install
+      ENTER, ENTER // overwrite app.js, create
+    ]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.docker, false)
+      assert.strictEqual(result.options.keepConfig, false)
+    })
+  })
+
+  it('should not create an app where a file is in the way', function () {
+    fs.mkdirSync(path.join(cwd, 'blocked'))
+    fs.writeFileSync(path.join(cwd, 'blocked', 'routes'), '')
+
+    const keys = ['b', 'l', 'o', 'c', 'k', 'e', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function () {
+      throw new Error('expected the wizard to be cancelled')
+    }, function (err) {
+      assert.ok(err instanceof CancelError)
     })
   })
 
@@ -304,6 +381,10 @@ describe('toCommand', function () {
 
   it('should prefer --api over the view', function () {
     assert.strictEqual(toCommand(options({ api: true, view: false })), 'npm create express-new@latest app -- --api')
+  })
+
+  it('should include --keep-config', function () {
+    assert.strictEqual(toCommand(options({ force: true, keepConfig: true })), 'npm create express-new@latest app -- --force --keep-config')
   })
 
   it('should include --no-git without a .gitignore', function () {

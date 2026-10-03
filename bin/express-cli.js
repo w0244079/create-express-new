@@ -1,43 +1,16 @@
 #!/usr/bin/env node
 
-import ejs from 'ejs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 import util from 'node:util'
+import { VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp } from '../lib/app.js'
 import { CancelError } from '../lib/prompts.js'
 import { wizard } from '../lib/wizard.js'
 
-const MODE_0666 = 0o666
 const MODE_0755 = 0o755
-const TEMPLATE_DIR = path.join(import.meta.dirname, '..', 'templates')
 const VERSION = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8')).version
-
-// generated app dependency versions, checked by `npm run versions`
-const VERSIONS = JSON.parse(fs.readFileSync(path.join(TEMPLATE_DIR, 'versions.json'), 'utf-8')).versions
-
-// supported view engines, keyed by template file extension
-const VIEW_ENGINES = {
-  ejs: { pkg: 'ejs' },
-  hbs: { pkg: 'hbs' },
-  pug: { pkg: 'pug' },
-  twig: { pkg: 'twig' }
-}
-
-// tsconfig.json for TypeScript apps, which Node.js runs by stripping types
-const TSCONFIG = {
-  compilerOptions: {
-    target: 'esnext',
-    module: 'nodenext',
-    strict: true,
-    noEmit: true,
-    allowImportingTsExtensions: true,
-    erasableSyntaxOnly: true,
-    verbatimModuleSyntax: true,
-    skipLibCheck: true
-  }
-}
 
 // command line options
 const OPTIONS = {
@@ -51,6 +24,7 @@ const OPTIONS = {
   git: { type: 'boolean' },
   helmet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
+  'keep-config': { type: 'boolean' },
   lint: { type: 'boolean' },
   'no-git': { type: 'boolean' },
   'no-view': { type: 'boolean' },
@@ -102,264 +76,53 @@ function confirm (msg, fn) {
 }
 
 /**
- * Copy file from template directory.
- */
-
-function copyTemplate (from, to, mode) {
-  write(to, fs.readFileSync(path.join(TEMPLATE_DIR, from), 'utf-8'), mode)
-}
-
-/**
- * Copy all files with the given extension from template directory.
- */
-
-function copyTemplateMulti (fromDir, toDir, ext) {
-  fs.readdirSync(path.join(TEMPLATE_DIR, fromDir))
-    .filter((name) => path.extname(name) === '.' + ext)
-    .forEach((name) => {
-      copyTemplate(path.join(fromDir, name), path.join(toDir, name))
-    })
-}
-
-/**
- * Create application at the given directory.
+ * Create application at the given directory, from its plan. Existing files
+ * with other contents are overwritten, except config files with
+ * `--keep-config`, and an existing .gitignore gets the missing lines.
+ * Leftover files from other options are left in place, with a warning.
  *
- * @param {string} name
  * @param {string} dir
+ * @param {object[]} entries
+ * @param {string[]} leftovers
  * @param {object} options
  * @param {function} done
  */
 
-function createApplication (name, dir, options, done) {
+function createApplication (dir, entries, leftovers, options, done) {
   console.log()
 
-  // Module format
-  const esm = !options.cjs
-  const dirname = esm ? 'import.meta.dirname' : '__dirname'
+  for (const entry of entries) {
+    const file = path.join(dir, entry.path)
 
-  // App kind: a JSON API has no views or static files
-  const api = Boolean(options.api)
+    if (entry.type === 'dir') {
+      if (entry.path !== '.' || dir !== '.') mkdir(file)
+      continue
+    }
 
-  // Language
-  const ts = Boolean(options.ts)
-  const ext = ts ? 'ts' : 'js'
-  const www = './bin/www.' + ext
+    const existing = read(file)
 
-  // load .env, when it exists, before starting the app
-  const env = '--env-file-if-exists=.env'
-
-  // Package
-  const pkg = {
-    name,
-    version: '0.0.0',
-    private: true,
-    type: esm ? 'module' : 'commonjs',
-    scripts: {
-      start: 'node ' + env + ' ' + www,
-      test: 'node --test',
-      // restart the app on change
-      dev: 'node --watch ' + env + ' ' + www
-    },
-    engines: {
-      // --env-file-if-exists needs Node.js 22.9, and TypeScript type
-      // stripping is enabled by default from Node.js 22.18
-      node: ts ? '>=22.18' : '>=22.9'
-    },
-    dependencies: {
-      express: VERSIONS.express
-    },
-    devDependencies: {}
-  }
-
-  // JavaScript
-  const app = loadTemplate('app/app.js')
-  const server = loadTemplate('app/www.js')
-  const test = loadTemplate('app/test/app.test.js')
-
-  for (const template of [app, server, test]) {
-    template.locals.api = api
-    template.locals.esm = esm
-    template.locals.ext = ext
-    template.locals.ts = ts
-  }
-
-  app.locals.dirname = dirname
-  app.locals.httpErrors = Boolean(options.view) || api
-
-  // App modules
-  app.locals.localModules = Object.create(null)
-  app.locals.modules = Object.create(null)
-  app.locals.mounts = []
-  app.locals.uses = []
-
-  // Security headers
-  if (options.helmet) {
-    app.locals.modules.helmet = 'helmet'
-    app.locals.uses.push('helmet()')
-    pkg.dependencies.helmet = VERSIONS.helmet
-  }
-
-  // Response compression
-  if (options.compression) {
-    app.locals.modules.compression = 'compression'
-    app.locals.uses.push('compression()')
-    pkg.dependencies.compression = VERSIONS.compression
-  }
-
-  // Cross-origin requests
-  if (options.cors) {
-    app.locals.modules.cors = 'cors'
-    app.locals.uses.push("cors({\n  // any origin, or only the comma-separated origins in CORS_ORIGIN\n  origin: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()) ?? '*'\n})")
-    pkg.dependencies.cors = VERSIONS.cors
-  }
-
-  // Request logger
-  app.locals.modules.logger = 'morgan'
-  app.locals.uses.push("logger('dev', {\n  // skip request logs while testing\n  skip: () => process.env.NODE_ENV === 'test'\n})")
-  pkg.dependencies.morgan = VERSIONS.morgan
-
-  // Body parsers
-  app.locals.uses.push('express.json()')
-
-  if (!api) {
-    app.locals.uses.push('express.urlencoded({ extended: false })')
-  }
-
-  // Cookie parser
-  if (options.cookies) {
-    app.locals.modules.cookieParser = 'cookie-parser'
-    app.locals.uses.push('cookieParser()')
-    pkg.dependencies['cookie-parser'] = VERSIONS['cookie-parser']
-  }
-
-  if (dir !== '.') {
-    mkdir(dir, '.')
-  }
-
-  if (!api) {
-    mkdir(dir, 'public')
-    mkdir(dir, 'public/stylesheets')
-
-    // Stylesheet
-    copyTemplate('public/stylesheets/style.css', path.join(dir, 'public/stylesheets/style.css'))
-  }
-
-  // copy route templates
-  mkdir(dir, 'routes')
-  for (const route of ['index', 'users']) {
-    const router = loadTemplate('app/routes/' + route + '.js')
-    router.locals.api = api
-    router.locals.esm = esm
-    write(path.join(dir, 'routes', route + '.' + ext), router.render())
-  }
-
-  // copy test templates
-  mkdir(dir, 'test')
-  write(path.join(dir, 'test/app.test.' + ext), test.render())
-
-  // Index router mount
-  app.locals.localModules.indexRouter = './routes/index.' + ext
-  app.locals.mounts.push({ path: '/', code: 'indexRouter' })
-
-  // User router mount
-  app.locals.localModules.usersRouter = './routes/users.' + ext
-  app.locals.mounts.push({ path: '/users', code: 'usersRouter' })
-
-  // Template support
-  if (options.view) {
-    const view = VIEW_ENGINES[options.view]
-
-    // Copy view templates
-    mkdir(dir, 'views')
-    copyTemplateMulti('views', dir + '/views', options.view)
-
-    app.locals.view = { engine: options.view }
-    pkg.dependencies[view.pkg] = VERSIONS[view.pkg]
-  } else {
-    app.locals.view = false
-
-    // Copy extra public files
-    if (!api) {
-      copyTemplate('public/index.html', path.join(dir, 'public/index.html'))
+    if (existing === null) {
+      write(file, entry.contents, entry.mode)
+    } else if (existing === entry.contents) {
+      log('identical', file)
+      executable(file, entry.mode)
+    } else if (entry.merge) {
+      const merged = mergeLines(existing, entry.contents)
+      if (merged === existing) log('keep', file)
+      else write(file, merged, entry.mode, 'update')
+    } else if (entry.config && options.keepConfig) {
+      log('keep', file)
+    } else {
+      write(file, entry.contents, entry.mode, 'overwrite')
+      executable(file, entry.mode)
     }
   }
 
-  // HTTP errors for the 404 and error handlers
-  if (app.locals.httpErrors) {
-    pkg.dependencies['http-errors'] = VERSIONS['http-errors']
+  if (leftovers.length) {
+    warning('these existing files are not used by the new app, so they were left as they are:\n' +
+      leftovers.map((file) => '  ' + path.join(dir, file)).join('\n') + '\n' +
+      'remove them if they are from an earlier app in another language or view engine')
   }
-
-  // Static files
-  if (!api) {
-    app.locals.uses.push('express.static(path.join(' + dirname + ", 'public'))")
-  }
-
-  // Environment variables
-  const envExample = loadTemplate('app/env.example')
-  envExample.locals.cors = Boolean(options.cors)
-  write(path.join(dir, '.env.example'), envExample.render())
-
-  // Container image
-  if (options.docker) {
-    const dockerfile = loadTemplate('app/Dockerfile')
-    dockerfile.locals.name = name
-    dockerfile.locals.www = www
-    write(path.join(dir, 'Dockerfile'), dockerfile.render())
-    copyTemplate('app/dockerignore', path.join(dir, '.dockerignore'))
-  }
-
-  if (options.git) {
-    copyTemplate('app/gitignore', path.join(dir, '.gitignore'))
-  }
-
-  // TypeScript type checking
-  if (ts) {
-    pkg.scripts.typecheck = 'tsc'
-    const types = ['@types/express', '@types/morgan', '@types/node']
-
-    if (app.locals.httpErrors) types.push('@types/http-errors')
-    if (options.compression) types.push('@types/compression')
-    if (options.cookies) types.push('@types/cookie-parser')
-    if (options.cors) types.push('@types/cors')
-
-    pkg.devDependencies.typescript = VERSIONS.typescript
-    for (const type of types) pkg.devDependencies[type] = VERSIONS[type]
-
-    write(path.join(dir, 'tsconfig.json'), JSON.stringify(TSCONFIG, null, 2) + '\n')
-  }
-
-  // Linting
-  if (options.lint) {
-    const config = loadTemplate('app/eslint.config.js')
-    config.locals.esm = esm
-    config.locals.ts = ts
-
-    // CommonJS apps need the .mjs extension for the ES module config
-    write(path.join(dir, esm ? 'eslint.config.js' : 'eslint.config.mjs'), config.render())
-
-    pkg.scripts.lint = 'eslint .'
-    for (const dep of ['eslint', '@eslint/js', 'globals']) pkg.devDependencies[dep] = VERSIONS[dep]
-
-    if (ts) {
-      // typescript-eslint does not support TypeScript 7 yet
-      pkg.devDependencies['typescript-eslint'] = VERSIONS['typescript-eslint']
-      pkg.devDependencies.typescript = VERSIONS['typescript@6']
-    }
-  }
-
-  // sort dependencies like npm(1)
-  pkg.dependencies = sortedObject(pkg.dependencies)
-  pkg.devDependencies = sortedObject(pkg.devDependencies)
-
-  if (!Object.keys(pkg.devDependencies).length) {
-    delete pkg.devDependencies
-  }
-
-  // write files
-  write(path.join(dir, 'app.' + ext), app.render())
-  write(path.join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
-  mkdir(dir, 'bin')
-  write(path.join(dir, 'bin/www.' + ext), server.render(), MODE_0755)
 
   // dependencies installed by the wizard print next steps afterwards
   if (!options.install) {
@@ -435,19 +198,6 @@ function printNextSteps (dir, install) {
 }
 
 /**
- * Create an app name from a directory path, fitting npm naming requirements.
- *
- * @param {String} pathName
- */
-
-function createAppName (pathName) {
-  return path.basename(pathName)
-    .replace(/[^A-Za-z0-9.-]+/g, '-')
-    .replace(/^[-_.]+|-+$/g, '')
-    .toLowerCase()
-}
-
-/**
  * Check if the given directory `dir` is empty.
  *
  * @param {String} dir
@@ -490,26 +240,6 @@ function exit (code) {
 function launchedFromCmd () {
   return process.platform === 'win32' &&
     process.env._ === undefined
-}
-
-/**
- * Load template file.
- */
-
-function loadTemplate (name) {
-  const contents = fs.readFileSync(path.join(TEMPLATE_DIR, name + '.ejs'), 'utf-8')
-  const locals = Object.create(null)
-
-  function render () {
-    return ejs.render(contents, locals, {
-      escape: util.inspect
-    })
-  }
-
-  return {
-    locals,
-    render
-  }
 }
 
 /**
@@ -574,15 +304,33 @@ function main (options, done) {
       return done(1)
     }
 
+    // Check the destination before writing anything
+    const entries = planApp(appName, options)
+    const { blockers, conflicts, leftovers } = checkDestination(destinationPath, entries)
+
+    if (blockers.length) {
+      error('cannot create the app:\n' + blockers.join('\n'))
+      return done(1)
+    }
+
+    const overwrites = conflicts.filter((entry) => !(entry.config && options.keepConfig))
+
     // Generate application
     emptyDirectory(destinationPath, (empty) => {
       if (empty || options.force) {
-        createApplication(appName, destinationPath, options, done)
+        createApplication(destinationPath, entries, leftovers, options, done)
       } else {
+        if (overwrites.length) {
+          console.log()
+          console.log('   these existing files will be overwritten:')
+          for (const entry of overwrites) console.log('     ' + path.join(destinationPath, entry.path))
+          console.log()
+        }
+
         confirm('destination is not empty, continue? [y/N] ', (ok) => {
           if (ok) {
             process.stdin.destroy()
-            createApplication(appName, destinationPath, options, done)
+            createApplication(destinationPath, entries, leftovers, options, done)
           } else {
             console.error('aborting')
             done(1)
@@ -594,17 +342,14 @@ function main (options, done) {
 }
 
 /**
- * Make the given dir relative to base.
+ * Create a directory, with its parents.
  *
- * @param {string} base
  * @param {string} dir
  */
 
-function mkdir (base, dir) {
-  const loc = path.join(base, dir)
-
-  console.log('   \x1b[36mcreate\x1b[0m : ' + loc + path.sep)
-  fs.mkdirSync(loc, { recursive: true, mode: MODE_0755 })
+function mkdir (dir) {
+  log('create', dir + path.sep)
+  fs.mkdirSync(dir, { recursive: true, mode: MODE_0755 })
 }
 
 /**
@@ -645,18 +390,9 @@ function parseOptions (argv) {
 
   // a .gitignore is added unless --no-git is given
   options.git = !options['no-git']
+  options.keepConfig = Boolean(options['keep-config'])
 
   return options
-}
-
-/**
- * Sort object keys like npm(1).
- *
- * @param {object} obj
- */
-
-function sortedObject (obj) {
-  return Object.fromEntries(Object.keys(obj).sort().map((key) => [key, obj[key]]))
 }
 
 /**
@@ -686,6 +422,8 @@ function usage () {
   console.log('        --lint           add ESLint and an npm run lint script')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
+  console.log('        --keep-config    keep existing config files (.env.example, Dockerfile,')
+  console.log('                         .dockerignore, tsconfig.json, eslint.config.*)')
   console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')
 }
@@ -713,13 +451,59 @@ function warning (message) {
 }
 
 /**
- * echo str > file.
+ * Make an existing file executable when its planned mode is, as writing it
+ * only sets the mode of new files. Adds execute where read is allowed.
+ *
+ * @param {string} file
+ * @param {number} mode
+ */
+
+function executable (file, mode) {
+  if (!(mode & 0o111)) return
+
+  const current = fs.statSync(file).mode & 0o777
+  const wanted = current | ((current & 0o444) >> 2)
+
+  if (wanted !== current) fs.chmodSync(file, wanted)
+}
+
+/**
+ * Log what happened to a file.
+ *
+ * @param {string} action
+ * @param {string} file
+ */
+
+function log (action, file) {
+  const color = action === 'overwrite' ? '33' : action === 'create' || action === 'update' ? '36' : '2'
+  console.log('   \x1b[' + color + 'm' + action + '\x1b[0m : ' + file)
+}
+
+/**
+ * Read a file, or null when it does not exist.
+ *
+ * @param {string} file
+ */
+
+function read (file) {
+  try {
+    return fs.readFileSync(file, 'utf-8')
+  } catch (err) {
+    if (err.code === 'ENOENT') return null
+    throw err
+  }
+}
+
+/**
+ * echo str > file, logging it as `action`.
  *
  * @param {String} file
  * @param {String} str
+ * @param {number} mode
+ * @param {string} action
  */
 
-function write (file, str, mode) {
-  fs.writeFileSync(file, str, { mode: mode || MODE_0666 })
-  console.log('   \x1b[36mcreate\x1b[0m : ' + file)
+function write (file, str, mode, action = 'create') {
+  fs.writeFileSync(file, str, { mode })
+  log(action, file)
 }
