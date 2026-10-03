@@ -1,0 +1,87 @@
+<% if (esm) { -%>
+import assert from 'node:assert';
+import { once } from 'node:events';
+<% if (ts) { -%>
+import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+<% } -%>
+import { after, before, describe, it } from 'node:test';
+import app from '../app.<%- ext %>';
+<% } else { -%>
+const assert = require('node:assert');
+const { once } = require('node:events');
+const { after, before, describe, it } = require('node:test');
+const app = require('../app.js');
+<% } -%>
+
+// skip request logs while testing (see app.<%- ext %>)
+process.env.NODE_ENV = 'test';
+
+describe('app', () => {
+<% if (ts) { -%>
+  let server: Server;
+  let baseUrl: string;
+<% } else { -%>
+  let server;
+  let baseUrl;
+<% } -%>
+
+  before(async () => {
+    // listen on a random free port
+    server = app.listen(0);
+    await once(server, 'listening');
+<% if (ts) { -%>
+    baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
+<% } else { -%>
+    baseUrl = `http://localhost:${server.address().port}`;
+<% } -%>
+  });
+
+  after(() => {
+    server.close();
+  });
+
+  it('responds to GET /health', async () => {
+    const res = await fetch(`${baseUrl}/health`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), { status: 'ok' });
+  });
+
+<% if (api) { -%>
+  it('responds to GET /', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), { message: 'Welcome to Express' });
+  });
+
+  it('responds to GET /users', async () => {
+    const res = await fetch(`${baseUrl}/users`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), []);
+  });
+
+  it('responds with a JSON 404 for unknown routes', async () => {
+    const res = await fetch(`${baseUrl}/does-not-exist`);
+    assert.strictEqual(res.status, 404);
+    assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+    assert.strictEqual((await res.json()).error, 'Not Found');
+  });
+});
+<% } else { -%>
+  it('responds to GET /', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.strictEqual(res.status, 200);
+  });
+
+  it('responds to GET /users', async () => {
+    const res = await fetch(`${baseUrl}/users`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(await res.text(), 'respond with a resource');
+  });
+
+  it('responds with 404 for unknown routes', async () => {
+    const res = await fetch(`${baseUrl}/does-not-exist`);
+    assert.strictEqual(res.status, 404);
+  });
+});
+<% } -%>

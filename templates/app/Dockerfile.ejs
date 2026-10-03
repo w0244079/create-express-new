@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+
+# Production image. Build it after `npm install`, which creates the
+# package-lock.json that `npm ci` needs:
+#
+#   docker build -t <%- name %> .
+#   docker run -p 3000:3000 <%- name %>
+
+# the latest Node.js 22 release, matching the minimum version in package.json
+FROM node:22-slim
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+# install production dependencies first, so they are cached between builds
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# copy the app owned by the unprivileged node user, which runs it, so it can
+# read the files whatever their permissions on the build machine
+COPY --chown=node:node . .
+USER node
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD node -e "fetch('http://localhost:' + (process.env.PORT || 3000) + '/health').then((res) => process.exit(res.ok ? 0 : 1), () => process.exit(1))"
+
+# run node directly, so it receives SIGTERM and shuts down gracefully
+CMD ["node", "<%- www %>"]

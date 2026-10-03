@@ -1,0 +1,22 @@
+<% if (esm) { -%>
+import express from 'express';
+<% } else { -%>
+const express = require('express');
+<% } -%>
+
+const router = express.Router();
+
+/* GET users listing. */
+router.get('/', (req, res) => {
+<% if (api) { -%>
+  res.json([]);
+<% } else { -%>
+  res.send('respond with a resource');
+<% } -%>
+});
+
+<% if (esm) { -%>
+export default router;
+<% } else { -%>
+module.exports = router;
+<% } -%>

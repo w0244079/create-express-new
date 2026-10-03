@@ -1,0 +1,22 @@
+<% if (esm) { -%>
+import express from 'express';
+<% } else { -%>
+const express = require('express');
+<% } -%>
+
+const router = express.Router();
+
+/* GET home page. */
+router.get('/', (req, res) => {
+<% if (api) { -%>
+  res.json({ message: 'Welcome to Express' });
+<% } else { -%>
+  res.render('index', { title: 'Express' });
+<% } -%>
+});
+
+<% if (esm) { -%>
+export default router;
+<% } else { -%>
+module.exports = router;
+<% } -%>

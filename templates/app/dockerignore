@@ -1,0 +1,15 @@
+# Dependencies are installed in the image
+node_modules
+
+# Environment variables are set by the container platform
+.env
+.env.*
+
+# Not needed to run the app
+.git
+.gitignore
+coverage
+test
+Dockerfile
+.dockerignore
+*.log

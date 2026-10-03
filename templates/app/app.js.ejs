@@ -1,0 +1,112 @@
+<% if (esm) { -%>
+<% if (httpErrors) { -%>
+import createError from 'http-errors';
+<% } -%>
+import express from 'express';
+<% if (ts) { -%>
+import type { NextFunction, Request, Response } from 'express';
+<% if (httpErrors) { -%>
+import type { HttpError } from 'http-errors';
+<% } -%>
+<% } -%>
+<% if (!api) { -%>
+import path from 'node:path';
+<% } -%>
+<% Object.keys(modules).sort().forEach(function (variable) { -%>
+import <%- variable %> from '<%- modules[variable] %>';
+<% }); -%>
+
+<% Object.keys(localModules).sort().forEach(function (variable) { -%>
+import <%- variable %> from '<%- localModules[variable] %>';
+<% }); -%>
+<% } else { -%>
+<% if (httpErrors) { -%>
+const createError = require('http-errors');
+<% } -%>
+const express = require('express');
+<% if (!api) { -%>
+const path = require('node:path');
+<% } -%>
+<% Object.keys(modules).sort().forEach(function (variable) { -%>
+const <%- variable %> = require('<%- modules[variable] %>');
+<% }); -%>
+
+<% Object.keys(localModules).sort().forEach(function (variable) { -%>
+const <%- variable %> = require('<%- localModules[variable] %>');
+<% }); -%>
+<% } -%>
+
+const app = express();
+
+// health check for load balancers and containers, defined before the
+// middleware so it stays fast and out of the request logs
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+<% if (view) { -%>
+// view engine setup
+<% if (view.render) { -%>
+app.engine('<%- view.engine %>', <%- view.render %>);
+<% } -%>
+app.set('views', path.join(<%- dirname %>, 'views'));
+app.set('view engine', '<%- view.engine %>');
+
+<% } -%>
+<% uses.forEach(function (use) { -%>
+app.use(<%- use %>);
+<% }); -%>
+
+<% mounts.forEach(function (mount) { -%>
+app.use(<%= mount.path %>, <%- mount.code %>);
+<% }); -%>
+
+<% if (view) { -%>
+// catch 404 and forward to error handler
+app.use((req, res, next) => {
+  next(createError(404));
+});
+
+// error handler
+<% if (ts) { -%>
+app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
+app.use((err, req, res, next) => {
+<% } -%>
+  // set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+  // render the error page
+  res.status(err.status || 500);
+  res.render('error');
+});
+
+<% } else if (api) { -%>
+// catch 404 and forward to error handler
+app.use((req, res, next) => {
+  next(createError(404));
+});
+
+// error handler
+<% if (ts) { -%>
+app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
+app.use((err, req, res, next) => {
+<% } -%>
+  const status = err.status || 500;
+  const development = req.app.get('env') === 'development';
+
+  // only expose client error messages, or every error in development
+  res.status(status).json({
+    error: err.expose || development ? err.message : 'Internal Server Error',
+    ...(development && { stack: err.stack })
+  });
+});
+
+<% } -%>
+<% if (esm) { -%>
+export default app;
+<% } else { -%>
+module.exports = app;
+<% } -%>

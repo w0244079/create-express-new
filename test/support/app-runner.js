@@ -1,84 +1,81 @@
-'use strict'
+import { exec } from 'node:child_process'
+import net from 'node:net'
+import kill from 'tree-kill'
+import * as utils from './utils.js'
 
-var exec = require('child_process').exec
-var kill = require('tree-kill')
-var net = require('net')
-var utils = require('./utils')
+export default class AppRunner {
+  constructor (dir) {
+    this.child = null
+    this.dir = dir
+    this.host = '127.0.0.1'
+    this.port = 3000
+  }
 
-module.exports = AppRunner
+  address () {
+    return { address: this.host, port: this.port }
+  }
 
-function AppRunner (dir) {
-  this.child = null
-  this.dir = dir
-  this.host = '127.0.0.1'
-  this.port = 3000
-}
+  start (callback) {
+    let done = false
+    const env = utils.childEnvironment()
 
-AppRunner.prototype.address = function address () {
-  return { port: this.port }
-}
+    env.PORT = String(this.port)
 
-AppRunner.prototype.start = function start (callback) {
-  var app = this
-  var done = false
-  var env = utils.childEnvironment()
+    this.child = exec('npm start', {
+      cwd: this.dir,
+      env
+    })
 
-  env.PORT = String(app.port)
+    this.child.stderr.pipe(process.stderr, { end: false })
 
-  this.child = exec('npm start', {
-    cwd: this.dir,
-    env: env
-  })
-
-  this.child.stderr.pipe(process.stderr, { end: false })
-
-  this.child.on('exit', function onExit (code) {
-    app.child = null
-
-    if (!done) {
-      done = true
-      callback(new Error('Unexpected app exit with code ' + code))
-    }
-  })
-
-  function tryConnect () {
-    if (done || !app.child) return
-
-    var socket = net.connect(app.port, app.host)
-
-    socket.on('connect', function onConnect () {
-      socket.end()
+    this.child.on('exit', (code) => {
+      this.child = null
 
       if (!done) {
         done = true
-        callback(null)
+        callback(new Error('Unexpected app exit with code ' + code))
       }
     })
 
-    socket.on('error', function onError (err) {
-      socket.destroy()
+    const tryConnect = () => {
+      if (done || !this.child) return
 
-      if (err.syscall !== 'connect') {
-        return callback(err)
-      }
+      const socket = net.connect(this.port, this.host)
 
-      setImmediate(tryConnect)
-    })
+      socket.on('connect', () => {
+        socket.end()
+
+        if (!done) {
+          done = true
+          callback(null)
+        }
+      })
+
+      socket.on('error', (err) => {
+        socket.destroy()
+
+        if (err.syscall !== 'connect') {
+          return callback(err)
+        }
+
+        setImmediate(tryConnect)
+      })
+    }
+
+    setImmediate(tryConnect)
   }
 
-  setImmediate(tryConnect)
-}
+  stop (callback) {
+    if (!this.child) {
+      setImmediate(callback)
+      return
+    }
 
-AppRunner.prototype.stop = function stop (callback) {
-  if (!this.child) {
-    setImmediate(callback)
-    return
+    this.child.stderr.unpipe()
+    this.child.removeAllListeners('exit')
+
+    kill(this.child.pid, 'SIGTERM', callback)
+
+    this.child = null
   }
-
-  this.child.stderr.unpipe()
-  this.child.removeAllListeners('exit')
-
-  kill(this.child.pid, 'SIGTERM', callback)
-
-  this.child = null
 }

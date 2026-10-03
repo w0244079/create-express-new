@@ -1,0 +1,39 @@
+{
+  "versions": {
+    "@eslint/js": "^10.0.1",
+    "@types/compression": "^1.8.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/http-errors": "^2.0.5",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^22.20.5",
+    "compression": "^1.8.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "ejs": "^6.0.1",
+    "eslint": "^10.11.0",
+    "express": "^5.2.1",
+    "globals": "^17.13.0",
+    "hbs": "^4.3.1",
+    "helmet": "^8.3.0",
+    "http-errors": "^2.0.1",
+    "morgan": "^1.12.1",
+    "pug": "^3.0.4",
+    "twig": "^3.0.0",
+    "typescript": "^7.0.2",
+    "typescript-eslint": "^8.71.0",
+    "typescript@6": "^6.0.3"
+  },
+  "hold": {
+    "@types/node": "kept on the major of the minimum supported Node.js version (22)",
+    "typescript@6": {
+      "reason": "used with --ts --lint until typescript-eslint supports TypeScript 7",
+      "until": {
+        "package": "typescript-eslint",
+        "peer": "typescript",
+        "supports": "7.0.0"
+      }
+    }
+  }
+}
