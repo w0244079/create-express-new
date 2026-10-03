@@ -4,6 +4,12 @@
 //   npm run versions -- --update raise each version floor to the newest
 //                                release within its current major
 //
+// Generated apps wait 3 days before installing a newly published version
+// (see templates/app/pnpm-workspace.yaml and templates/app/npmrc), so an app
+// whose version floor is a newer release than that cannot be installed. Such
+// a floor is reported, and lowered by --update. Floors are only raised to
+// releases that are 7 days old, which leaves a margin.
+//
 // New major versions are only reported, as they need a manual review of the
 // generated templates before the range in templates/versions.json is changed.
 // An entry named `<package>@<major>` pins that package to that major.
@@ -20,6 +26,9 @@ import { promisify } from 'node:util'
 
 const FILE = path.join(import.meta.dirname, '..', 'templates', 'versions.json')
 const STABLE = /^(\d+)\.(\d+)\.(\d+)$/
+const COOLDOWN_DAYS = 3
+const MIN_AGE_DAYS = 7
+const DAY = 24 * 60 * 60 * 1000
 
 const run = promisify(exec)
 const update = process.argv.includes('--update')
@@ -29,14 +38,16 @@ const hold = config.hold || {}
 const results = await Promise.all(Object.entries(config.versions).map(async ([name, range]) => {
   // `typescript@6` checks typescript within major 6
   const pkg = name.replace(/(.)@\d+$/, '$1')
-  const { stdout } = await run(`npm view ${pkg} versions dist-tags.latest --json`)
+  const { stdout } = await run(`npm view ${pkg} versions time dist-tags.latest --json`)
   const info = JSON.parse(stdout)
   const floor = parse(range.replace(/^\^/, ''))
   const versions = info.versions.filter((v) => STABLE.test(v)).map(parse)
+  const age = (v) => (Date.now() - Date.parse(info.time[v.join('.')])) / DAY
 
-  // newest release that the caret range allows
+  // newest release that the caret range allows and that is old enough
   const best = versions
     .filter((v) => v[0] === floor[0] && (floor[0] > 0 || v[1] === floor[1]))
+    .filter((v) => age(v) >= MIN_AGE_DAYS)
     .sort(compare)
     .pop()
   const latest = parse(info['dist-tags.latest'])
@@ -47,6 +58,8 @@ const results = await Promise.all(Object.entries(config.versions).map(async ([na
     best: best && '^' + best.join('.'),
     latest: latest.join('.'),
     behind: best && compare(best, floor) > 0,
+    // the floor itself is too new for generated apps to install
+    young: age(floor) < COOLDOWN_DAYS && Math.floor(age(floor)),
     major: latest[0] > floor[0] && !hold[name],
     held: latest[0] > floor[0] && Boolean(hold[name])
   }
@@ -61,6 +74,14 @@ for (const r of results) {
     status = update ? `updated to ${r.best}` : `behind, newest in range is ${r.best}`
     drift = drift || !update
     if (update) config.versions[r.name] = r.best
+  } else if (r.young !== false) {
+    const days = `released ${r.young} day${r.young === 1 ? '' : 's'} ago`
+
+    if (!r.best) status = `too new (${days}), with no older release in range`
+    else status = update ? `too new (${days}), lowered to ${r.best}` : `too new (${days}), newest old enough is ${r.best}`
+
+    drift = drift || !update || !r.best
+    if (update && r.best) config.versions[r.name] = r.best
   }
 
   if (r.major) {

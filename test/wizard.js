@@ -23,7 +23,7 @@ describe('wizard', function () {
   })
 
   it('should default to a pug web app with .gitignore and install', function () {
-    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]).then(function (result) {
+    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]).then(function (result) {
       assert.deepStrictEqual(result.options, {
         _: ['my-app'],
         '!': [],
@@ -41,13 +41,14 @@ describe('wizard', function () {
         keepConfig: false,
         lint: false,
         logger: 'morgan',
+        pm: 'pnpm',
         rateLimit: false,
         session: false,
         ts: false,
         uploads: false,
         view: 'pug'
       })
-      assert.ok(result.output.includes('npm create express-new@latest my-app'))
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app'))
     })
   })
 
@@ -60,6 +61,7 @@ describe('wizard', function () {
       ENTER, // morgan
       ' ', DOWN, ' ', ENTER, // Dockerfile and ESLint
       'n', // no .gitignore
+      DOWN, ENTER, // npm
       'n', // no install
       'y' // create
     ]
@@ -78,19 +80,20 @@ describe('wizard', function () {
       assert.strictEqual(options.docker, true)
       assert.strictEqual(options.lint, true)
       assert.strictEqual(options.git, false)
+      assert.strictEqual(options.pm, 'npm')
       assert.strictEqual(options.install, false)
       assert.ok(!result.output.includes('View engine'), 'should not ask for a view engine')
-      assert.ok(result.output.includes('npm create express-new@latest my-api -- --api --ts --helmet --cookies --cors --docker --lint --no-git'))
+      assert.ok(result.output.includes('npm create express-new@latest my-api -- --api --ts --helmet --cookies --cors --docker --lint --pm=npm --no-git'))
     })
   })
 
   it('should ask for a CommonJS web app with a view engine', function () {
-    const keys = ['w', 'e', 'b', ENTER, ENTER, DOWN, ENTER, DOWN, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, 'n', ENTER]
+    const keys = ['w', 'e', 'b', ENTER, ENTER, DOWN, ENTER, DOWN, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n', ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.view, 'ejs')
       assert.strictEqual(result.options.cjs, true)
-      assert.ok(result.output.includes('npm create express-new@latest web -- --view=ejs --cjs'))
+      assert.ok(result.output.includes('pnpm create express-new@latest web --view=ejs --cjs'))
     })
   })
 
@@ -100,7 +103,7 @@ describe('wizard', function () {
       DOWN, DOWN, DOWN, DOWN, ' ', DOWN, ' ', ENTER, // express-rate-limit and express-session
       ENTER, // CSRF protection
       DOWN, ENTER, // pino
-      ENTER, ENTER, ENTER, ENTER // extras, .gitignore, install, create
+      ENTER, ENTER, ENTER, ENTER, ENTER // extras, .gitignore, pnpm, install, create
     ]
 
     return answer(keys).then(function (result) {
@@ -109,12 +112,12 @@ describe('wizard', function () {
       assert.strictEqual(options.session, true)
       assert.strictEqual(options.csrf, true)
       assert.strictEqual(options.logger, 'pino')
-      assert.ok(result.output.includes('npm create express-new@latest my-app -- --rate-limit --session --csrf --logger=pino'))
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app --rate-limit --session --csrf --logger=pino'))
     })
   })
 
   it('should not offer sessions for a JSON API', function () {
-    const keys = [ENTER, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ENTER, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.ok(result.output.includes('express-rate-limit'))
@@ -127,12 +130,12 @@ describe('wizard', function () {
     const keys = [
       ENTER, DOWN, ENTER, ENTER, // directory, JSON API, JavaScript
       DOWN, DOWN, DOWN, DOWN, DOWN, ' ', ENTER, // multer
-      ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, install, create
+      ENTER, ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, pnpm, install, create
     ]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.uploads, true)
-      assert.ok(result.output.includes('npm create express-new@latest my-app -- --api --uploads'))
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app --api --uploads'))
     })
   })
 
@@ -142,7 +145,7 @@ describe('wizard', function () {
       DOWN, DOWN, DOWN, DOWN, ENTER, // no view engine
       ENTER, // JavaScript
       DOWN, DOWN, DOWN, DOWN, DOWN, ' ', ENTER, // express-session
-      ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, install, create
+      ENTER, ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, pnpm, install, create
     ]
 
     return answer(keys).then(function (result) {
@@ -156,7 +159,7 @@ describe('wizard', function () {
     fs.mkdirSync(path.join(cwd, 'busy'))
     fs.writeFileSync(path.join(cwd, 'busy', 'file.txt'), '')
 
-    const keys = ['b', 'u', 's', 'y', ENTER, 'n', 'n', 'e', 'w', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'u', 's', 'y', ENTER, 'n', 'n', 'e', 'w', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['new'])
@@ -166,19 +169,19 @@ describe('wizard', function () {
   })
 
   it('should force a non-empty directory when confirmed', function () {
-    const keys = ['b', 'u', 's', 'y', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'u', 's', 'y', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['busy'])
       assert.strictEqual(result.options.force, true)
-      assert.ok(result.output.includes('npm create express-new@latest busy -- --force'))
+      assert.ok(result.output.includes('pnpm create express-new@latest busy --force'))
     })
   })
 
   it('should accept the current directory', function () {
     fs.writeFileSync(path.join(cwd, 'notes.txt'), '')
 
-    const keys = ['.', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['.', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['.'])
@@ -186,7 +189,7 @@ describe('wizard', function () {
       assert.ok(result.output.includes('. for the current directory'))
       assert.ok(result.output.includes('The current directory is not empty'))
       assert.ok(!result.output.includes('Existing files'), 'should not ask about files the app does not create')
-      assert.ok(result.output.includes('npm create express-new@latest . -- --force'))
+      assert.ok(result.output.includes('pnpm create express-new@latest . --force'))
     }).finally(function () {
       fs.rmSync(path.join(cwd, 'notes.txt'))
     })
@@ -197,7 +200,7 @@ describe('wizard', function () {
     fs.writeFileSync(path.join(cwd, 'old', 'app.js'), '// mine\n')
     fs.writeFileSync(path.join(cwd, 'old', '.env.example'), 'PORT=1\n')
 
-    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.ok(result.output.includes('These existing files will be overwritten'))
@@ -207,12 +210,12 @@ describe('wizard', function () {
   })
 
   it('should keep existing config files when chosen', function () {
-    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, DOWN, ENTER, ENTER]
+    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, DOWN, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.ok(result.output.includes('Keep my config files'))
       assert.strictEqual(result.options.keepConfig, true)
-      assert.ok(result.output.includes('npm create express-new@latest old -- --force --keep-config'))
+      assert.ok(result.output.includes('pnpm create express-new@latest old --force --keep-config'))
     })
   })
 
@@ -225,10 +228,10 @@ describe('wizard', function () {
       'o', 'l', 'd', ENTER, 'y', // directory
       ENTER, ENTER, ENTER, ENTER, ENTER, // kind, view, language, middleware, logger
       ' ', ENTER, // Dockerfile
-      ENTER, ENTER, // .gitignore, install
+      ENTER, ENTER, ENTER, // .gitignore, pnpm, install
       DOWN, ENTER, // keep the Dockerfile
-      LEFT, LEFT, LEFT, LEFT, ' ', ENTER, // back to extras, no Dockerfile
-      ENTER, ENTER, // .gitignore, install
+      LEFT, LEFT, LEFT, LEFT, LEFT, ' ', ENTER, // back to extras, no Dockerfile
+      ENTER, ENTER, ENTER, // .gitignore, pnpm, install
       ENTER, ENTER // overwrite app.js, create
     ]
 
@@ -242,7 +245,7 @@ describe('wizard', function () {
     fs.mkdirSync(path.join(cwd, 'blocked'))
     fs.writeFileSync(path.join(cwd, 'blocked', 'routes'), '')
 
-    const keys = ['b', 'l', 'o', 'c', 'k', 'e', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'l', 'o', 'c', 'k', 'e', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function () {
       throw new Error('expected the wizard to be cancelled')
@@ -252,17 +255,17 @@ describe('wizard', function () {
   })
 
   it('should go back to change the kind of app, skipping the view engine', function () {
-    const keys = [ENTER, ENTER, LEFT, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ENTER, ENTER, LEFT, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.api, true)
       assert.strictEqual(result.options.view, false)
-      assert.ok(result.output.includes('npm create express-new@latest my-app -- --api'))
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app --api'))
     })
   })
 
   it('should keep answers when going back', function () {
-    const keys = [ENTER, ENTER, ENTER, ENTER, ' ', ENTER, LEFT, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ENTER, ENTER, ENTER, ENTER, ' ', ENTER, LEFT, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.helmet, true)
@@ -270,7 +273,7 @@ describe('wizard', function () {
   })
 
   it('should go back from the summary to change an answer', function () {
-    const keys = [ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, LEFT, 'n', ENTER]
+    const keys = [ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, LEFT, 'n', ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.install, false)
@@ -278,7 +281,7 @@ describe('wizard', function () {
   })
 
   it('should go back with Esc, keeping the typed directory', function () {
-    const keys = ['x', ENTER, ESC, 200, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['x', ENTER, ESC, 200, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['xy'])
@@ -286,7 +289,7 @@ describe('wizard', function () {
   })
 
   it('should not go back from the first question', function () {
-    const keys = [ESC, 200, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ESC, 200, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['my-app'])
@@ -295,8 +298,8 @@ describe('wizard', function () {
 
   it('should leave out hints that do not fit a narrow terminal', function () {
     return Promise.all([
-      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 40 }),
-      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 120 })
+      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 40 }),
+      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 120 })
     ]).then(function ([narrow, wide]) {
       // the Language hints are too long for 40 columns, the app kind hints fit
       assert.ok(!narrow.output.includes('runs directly on Node.js'))
@@ -309,7 +312,7 @@ describe('wizard', function () {
 
   it('should redraw wrapped lines in a narrow terminal', function () {
     const name = 'a'.repeat(20)
-    const keys = [...name, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [...name, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys, { columns: 40 }).then(function (result) {
       assert.deepStrictEqual(result.options._, [name])
@@ -327,7 +330,7 @@ describe('wizard', function () {
   })
 
   it('should cancel when declining to create the app', function () {
-    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n']).then(function () {
+    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n']).then(function () {
       throw new Error('expected the wizard to be cancelled')
     }, function (err) {
       assert.ok(err instanceof CancelError)
@@ -435,35 +438,41 @@ describe('toCommand', function () {
   }
 
   it('should omit the default view engine', function () {
-    assert.strictEqual(toCommand(options()), 'npm create express-new@latest app')
+    assert.strictEqual(toCommand(options()), 'pnpm create express-new@latest app')
   })
 
   it('should include a view engine or --no-view', function () {
-    assert.strictEqual(toCommand(options({ view: 'twig' })), 'npm create express-new@latest app -- --view=twig')
-    assert.strictEqual(toCommand(options({ view: false })), 'npm create express-new@latest app -- --no-view')
+    assert.strictEqual(toCommand(options({ view: 'twig' })), 'pnpm create express-new@latest app --view=twig')
+    assert.strictEqual(toCommand(options({ view: false })), 'pnpm create express-new@latest app --no-view')
   })
 
   it('should prefer --api over the view', function () {
-    assert.strictEqual(toCommand(options({ api: true, view: false })), 'npm create express-new@latest app -- --api')
+    assert.strictEqual(toCommand(options({ api: true, view: false })), 'pnpm create express-new@latest app --api')
   })
 
   it('should include --keep-config', function () {
-    assert.strictEqual(toCommand(options({ force: true, keepConfig: true })), 'npm create express-new@latest app -- --force --keep-config')
+    assert.strictEqual(toCommand(options({ force: true, keepConfig: true })), 'pnpm create express-new@latest app --force --keep-config')
   })
 
   it('should include the new middleware and a logger other than morgan', function () {
     assert.strictEqual(
       toCommand(options({ rateLimit: true, session: true, csrf: true, logger: 'pino' })),
-      'npm create express-new@latest app -- --rate-limit --session --csrf --logger=pino'
+      'pnpm create express-new@latest app --rate-limit --session --csrf --logger=pino'
     )
-    assert.strictEqual(toCommand(options({ logger: 'morgan' })), 'npm create express-new@latest app')
+    assert.strictEqual(toCommand(options({ logger: 'morgan' })), 'pnpm create express-new@latest app')
   })
 
   it('should include --no-git without a .gitignore', function () {
-    assert.strictEqual(toCommand(options({ git: false })), 'npm create express-new@latest app -- --no-git')
+    assert.strictEqual(toCommand(options({ git: false })), 'pnpm create express-new@latest app --no-git')
+  })
+
+  it('should use npm create, with the options after --, for an npm app', function () {
+    assert.strictEqual(toCommand(options({ pm: 'npm' })), 'npm create express-new@latest app -- --pm=npm')
+    assert.strictEqual(toCommand(options({ pm: 'npm', ts: true, git: false })), 'npm create express-new@latest app -- --ts --pm=npm --no-git')
+    assert.strictEqual(toCommand(options({ pm: 'pnpm' })), 'pnpm create express-new@latest app')
   })
 
   it('should quote directories with spaces', function () {
-    assert.strictEqual(toCommand(options({ _: ['my app'] })), 'npm create express-new@latest "my app"')
+    assert.strictEqual(toCommand(options({ _: ['my app'] })), 'pnpm create express-new@latest "my app"')
   })
 })

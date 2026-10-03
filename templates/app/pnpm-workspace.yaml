@@ -1,0 +1,24 @@
+# pnpm settings that protect installs from compromised packages.
+# https://pnpm.io/supply-chain-security
+
+# Wait 3 days (in minutes) before installing a newly published version, so a
+# compromised release can be found and removed from the registry first.
+minimumReleaseAge: 4320
+
+# Fail when a dependency wants to run an install script, instead of skipping
+# it. None of this app's dependencies need one; approve a package you trust
+# with `pnpm approve-builds`.
+strictDepBuilds: true
+
+# Dependencies of dependencies must come from the registry, not git or a URL.
+blockExoticSubdeps: true
+
+# Fail when a version was published with weaker proof of where it came from
+# than an earlier version of the package, a sign of a stolen account. Versions
+# over a year old (in minutes) are not checked.
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 525600
+
+# Run the pnpm version recorded in pnpm-lock.yaml, downloading it when another
+# version is installed, so everyone installs with the same pnpm.
+pmOnFail: download

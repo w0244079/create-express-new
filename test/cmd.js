@@ -1,5 +1,5 @@
 import assert from 'node:assert'
-import { exec, spawn } from 'node:child_process'
+import { exec, execSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -12,7 +12,9 @@ import * as utils from './support/utils.js'
 const APP_START_STOP_TIMEOUT = 10000
 const PKG_PATH = path.resolve(import.meta.dirname, '..', 'package.json')
 const BIN_PATH = path.resolve(path.dirname(PKG_PATH), JSON.parse(fs.readFileSync(PKG_PATH, 'utf8')).bin.express)
-const NPM_INSTALL_TIMEOUT = 300000 // 5 minutes
+const INSTALL_TIMEOUT = 300000 // 5 minutes
+// npm apps require npm 12, which Node.js 22 and 24 do not include
+const NPM_MAJOR = Number(execSync('npm --version', { encoding: 'utf8' }).split('.')[0])
 const STDERR_MAX_BUFFER = 5 * 1024 * 1024 // 5mb
 const TEMP_DIR = utils.tmpDir()
 const VERSIONS = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '..', 'templates', 'versions.json'), 'utf8')).versions
@@ -32,7 +34,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stdout = stdout
         ctx.warnings = warnings
-        assert.strictEqual(ctx.files.length, 18)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -63,8 +65,8 @@ describe('express(1)', function () {
     })
 
     it('should provide start instructions', function () {
-      assert.ok(/ npm start/.test(ctx.stdout))
-      assert.ok(/ npm run dev/.test(ctx.stdout))
+      assert.ok(/ pnpm start/.test(ctx.stdout))
+      assert.ok(/ pnpm dev/.test(ctx.stdout))
       assert.ok(!/DEBUG=/.test(ctx.stdout))
     })
 
@@ -99,6 +101,13 @@ describe('express(1)', function () {
         '  "engines": {\n' +
         '    "node": ">=22.9"\n' +
         '  },\n' +
+        '  "devEngines": {\n' +
+        '    "packageManager": {\n' +
+        '      "name": "pnpm",\n' +
+        '      "version": ">=11",\n' +
+        '      "onFail": "error"\n' +
+        '    }\n' +
+        '  },\n' +
         '  "dependencies": {\n' +
         '    "express": "' + VERSIONS.express + '",\n' +
         '    "http-errors": "' + VERSIONS['http-errors'] + '",\n' +
@@ -109,13 +118,13 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    it('should pass npm test', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
     it('should export an express app from app.js', function () {
@@ -127,7 +136,7 @@ describe('express(1)', function () {
       })
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -167,7 +176,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx0.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 18)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 19)
           done()
         })
       })
@@ -187,7 +196,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx1.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 18)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 19)
           done()
         })
       })
@@ -216,7 +225,7 @@ describe('express(1)', function () {
     it('should print usage', function (done) {
       runRaw(ctx.dir, ['--foo'], function (err, code, stdout, stderr) {
         if (err) return done(err)
-        assert.ok(/Usage: npm create express-new@latest \[dir\] -- \[options\]/.test(stdout))
+        assert.ok(/Usage: pnpm create express-new@latest \[dir\] \[options\]/.test(stdout))
         assert.ok(/--help/.test(stdout))
         assert.ok(/--version/.test(stdout))
         assert.ok(/error: unknown option/.test(stderr))
@@ -242,7 +251,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stderr = stderr
         ctx.stdout = stdout
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -252,11 +261,11 @@ describe('express(1)', function () {
     })
 
     it('should provide install instructions', function () {
-      assert.ok(/npm install/.test(ctx.stdout))
+      assert.ok(/pnpm install/.test(ctx.stdout))
     })
 
     it('should provide debug instructions', function () {
-      assert.ok(/ npm start/.test(ctx.stdout))
+      assert.ok(/ pnpm start/.test(ctx.stdout))
     })
 
     it('should have basic files', function () {
@@ -364,6 +373,17 @@ describe('express(1)', function () {
         done()
       })
     })
+
+    it('should warn about the settings of another package manager', function (done) {
+      runRaw(ctx.dir, ['--force', '--cjs', '--lint', '--pm=npm', '.'], function (err, code, stdout, stderr) {
+        if (err) return done(err)
+        assert.strictEqual(code, 0)
+        const [warning] = utils.parseWarnings(stderr)
+        assert.ok(/pnpm-workspace\.yaml/.test(warning))
+        assert.ok(fs.existsSync(path.join(ctx.dir, '.npmrc')))
+        done()
+      })
+    })
   })
 
   describe('--keep-config', function () {
@@ -380,7 +400,7 @@ describe('express(1)', function () {
         assert.deepStrictEqual(utils.parseWarnings(stderr), [
           'these existing files are not used by the new app, so they were left as they are:\n' +
           '  app.js\n' +
-          'remove them if they are from an earlier app in another language or view engine'
+          'remove them if they are from an earlier app with other options'
         ])
         assert.ok(/keep.*: tsconfig\.json/.test(stdout))
         assert.ok(/update.*: \.gitignore/.test(stdout))
@@ -424,7 +444,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--api'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 11)
+        assert.strictEqual(ctx.files.length, 12)
         done()
       })
     })
@@ -453,16 +473,16 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    it('should pass npm test', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -518,18 +538,18 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx0.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx0.dir, done)
       })
 
       it('should pass type checking', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx0.dir, 'typecheck', done)
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx0.dir, 'typecheck', done)
       })
 
-      it('should pass npm test', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx0.dir, 'test', done)
+      it('should pass its tests', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx0.dir, 'test', done)
       })
     })
 
@@ -554,7 +574,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cjs'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 18)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -584,13 +604,13 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    it('should pass npm test', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
     it('should export an express app from app.js', function () {
@@ -599,7 +619,7 @@ describe('express(1)', function () {
       assert.strictEqual(typeof app.handle, 'function')
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -641,7 +661,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--compression'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 18)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -659,11 +679,11 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -695,7 +715,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cookies'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 18)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -713,8 +733,8 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
     it('should parse cookies', function () {
@@ -740,7 +760,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--lint'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         assert.notStrictEqual(ctx.files.indexOf('eslint.config.js'), -1)
         done()
       })
@@ -753,13 +773,13 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    it('should pass npm run lint', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'lint', done)
+    it('should pass linting', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'lint', done)
     })
 
     describe('with --cjs', function () {
@@ -774,13 +794,13 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx0.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx0.dir, done)
       })
 
-      it('should pass npm run lint', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx0.dir, 'lint', done)
+      it('should pass linting', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx0.dir, 'lint', done)
       })
     })
 
@@ -800,23 +820,23 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx1.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx1.dir, done)
       })
 
-      it('should pass npm run lint', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx1.dir, 'lint', done)
+      it('should pass linting', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx1.dir, 'lint', done)
       })
 
-      it('should pass npm run typecheck', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx1.dir, 'typecheck', done)
+      it('should pass type checking', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx1.dir, 'typecheck', done)
       })
 
-      it('should pass npm test', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx1.dir, 'test', done)
+      it('should pass its tests', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx1.dir, 'test', done)
       })
     })
   })
@@ -828,7 +848,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--no-git'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 17, 'should have 17 files')
+        assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
         assert.strictEqual(ctx.files.indexOf('.gitignore'), -1, 'should not have .gitignore file')
         done()
       })
@@ -852,7 +872,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cors'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 18)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -872,11 +892,11 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -907,7 +927,7 @@ describe('express(1)', function () {
     it('should create basic app', function (done) {
       run(ctx.dir, ['--rate-limit'], function (err, stdout) {
         if (err) return done(err)
-        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 18)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 19)
         done()
       })
     })
@@ -934,16 +954,16 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
     it('should pass its tests', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -982,7 +1002,7 @@ describe('express(1)', function () {
     it('should create basic app', function (done) {
       run(ctx.dir, ['--session'], function (err, stdout) {
         if (err) return done(err)
-        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 18)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 19)
         done()
       })
     })
@@ -1004,8 +1024,8 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
     it('should require SESSION_SECRET in production', function (done) {
@@ -1022,7 +1042,7 @@ describe('express(1)', function () {
       })
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1068,7 +1088,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--session', '--csrf'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         done()
       })
     })
@@ -1096,16 +1116,16 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
     it('should pass its tests', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1209,7 +1229,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--uploads', '--docker'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 22)
+        assert.strictEqual(ctx.files.length, 23)
         done()
       })
     })
@@ -1241,20 +1261,20 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
     it('should pass its tests, leaving no uploaded files', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', function (err) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', function (err) {
         if (err) return done(err)
         assert.deepStrictEqual(fs.readdirSync(path.resolve(ctx.dir, 'uploads')), [])
         done()
       })
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1318,17 +1338,17 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx0.dir, ['--api', '--uploads'], function (err, stdout) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(stdout, ctx0.dir).length, 12)
+          assert.strictEqual(utils.parseCreatedFiles(stdout, ctx0.dir).length, 13)
           done()
         })
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx0.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx0.dir, done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx0.dir)
         })
@@ -1391,16 +1411,16 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx0.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx0.dir, done)
       })
 
       it('should pass its tests', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx0.dir, 'test', done)
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx0.dir, 'test', done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx0.dir)
         })
@@ -1451,7 +1471,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx.dir, ['--api', '--logger=pino'], function (err, stdout) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 11)
+          assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 12)
           done()
         })
       })
@@ -1472,16 +1492,16 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx.dir, done)
       })
 
       it('should pass its tests', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx.dir, 'test', done)
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx.dir, 'test', done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx.dir)
         })
@@ -1538,7 +1558,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--docker'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         done()
       })
     })
@@ -1551,11 +1571,19 @@ describe('express(1)', function () {
     it('should run the app as the node user with a health check', function () {
       const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
       assert.ok(/^FROM node:22-slim$/m.test(contents))
-      assert.ok(/^RUN npm ci --omit=dev$/m.test(contents))
       assert.ok(/^COPY --chown=node:node \. \.$/m.test(contents))
       assert.ok(/^USER node$/m.test(contents))
       assert.ok(/^HEALTHCHECK /m.test(contents))
       assert.ok(/^CMD \["node", "\.\/bin\/www\.js"\]$/m.test(contents))
+    })
+
+    it('should install dependencies with pnpm in their own stage', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
+      assert.ok(/^FROM node:22-slim AS dependencies$/m.test(contents))
+      assert.ok(contents.includes('\nRUN npm install -g pnpm@' + VERSIONS.pnpm.slice(1) + '\n'))
+      assert.ok(/^COPY package\.json pnpm-lock\.yaml pnpm-workspace\.yaml \.\/$/m.test(contents))
+      assert.ok(/^RUN pnpm install --frozen-lockfile --prod$/m.test(contents))
+      assert.ok(/^COPY --from=dependencies \/app\/node_modules \.\/node_modules$/m.test(contents))
     })
 
     it('should keep secrets and dependencies out of the image', function () {
@@ -1565,16 +1593,16 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    it('should pass npm test', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1604,7 +1632,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--helmet'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 18)
+        assert.strictEqual(ctx.files.length, 19)
         done()
       })
     })
@@ -1622,11 +1650,11 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1662,7 +1690,7 @@ describe('express(1)', function () {
         if (err) return done(err)
         const files = utils.parseCreatedFiles(stdout, ctx.dir)
         assert.strictEqual(files.length, 0)
-        assert.ok(/Usage: npm create express-new@latest \[dir\] -- \[options\]/.test(stdout))
+        assert.ok(/Usage: pnpm create express-new@latest \[dir\] \[options\]/.test(stdout))
         assert.ok(/--help/.test(stdout))
         assert.ok(/--version/.test(stdout))
         done()
@@ -1678,7 +1706,7 @@ describe('express(1)', function () {
         if (err) return done(err)
         const files = utils.parseCreatedFiles(stdout, ctx.dir)
         assert.strictEqual(files.length, 0)
-        assert.ok(/Usage: npm create express-new@latest \[dir\] -- \[options\]/.test(stdout))
+        assert.ok(/Usage: pnpm create express-new@latest \[dir\] \[options\]/.test(stdout))
         assert.ok(/--help/.test(stdout))
         assert.ok(/--version/.test(stdout))
         done()
@@ -1702,6 +1730,133 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--pm', function () {
+    describe('(default)', function () {
+      const ctx = setupTestEnvironment('pm default')
+
+      it('should create an app that requires pnpm', function (done) {
+        run(ctx.dir, [], function (err, stdout) {
+          if (err) return done(err)
+          const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+          assert.deepStrictEqual(pkg.devEngines.packageManager, { name: 'pnpm', version: '>=11', onFail: 'error' })
+          done()
+        })
+      })
+
+      it('should have pnpm settings that protect installs', function () {
+        const contents = fs.readFileSync(path.resolve(ctx.dir, 'pnpm-workspace.yaml'), 'utf8')
+        assert.ok(/^minimumReleaseAge: 4320$/m.test(contents))
+        assert.ok(/^strictDepBuilds: true$/m.test(contents))
+        assert.ok(/^blockExoticSubdeps: true$/m.test(contents))
+        assert.ok(/^trustPolicy: no-downgrade$/m.test(contents))
+        assert.ok(/^pmOnFail: download$/m.test(contents))
+        assert.ok(!fs.existsSync(path.resolve(ctx.dir, '.npmrc')))
+      })
+
+      it('should refuse to install with npm', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        exec('npm install', { cwd: ctx.dir, env: utils.childEnvironment() }, function (err, stdout, stderr) {
+          assert.ok(err)
+          assert.ok(/EBADDEVENGINES/.test(stderr))
+          assert.ok(!fs.existsSync(path.resolve(ctx.dir, 'node_modules')))
+          done()
+        })
+      })
+    })
+
+    describe('npm', function () {
+      const ctx = setupTestEnvironment('pm npm')
+
+      it('should create an app that requires npm', function (done) {
+        run(ctx.dir, ['--pm=npm', '--docker'], function (err, stdout) {
+          if (err) return done(err)
+          ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+          ctx.stdout = stdout
+          const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+          assert.deepStrictEqual(pkg.devEngines.packageManager, { name: 'npm', version: '>=12', onFail: 'error' })
+          assert.strictEqual(ctx.files.length, 21)
+          done()
+        })
+      })
+
+      it('should have npm settings that protect installs', function () {
+        assert.notStrictEqual(ctx.files.indexOf('.npmrc'), -1)
+        assert.strictEqual(ctx.files.indexOf('pnpm-workspace.yaml'), -1)
+        assert.ok(/^min-release-age=3$/m.test(fs.readFileSync(path.resolve(ctx.dir, '.npmrc'), 'utf8')))
+      })
+
+      it('should provide npm instructions', function () {
+        assert.ok(/ npm install/.test(ctx.stdout))
+        assert.ok(/ npm start/.test(ctx.stdout))
+        assert.ok(/ npm run dev/.test(ctx.stdout))
+        assert.ok(!/pnpm/.test(ctx.stdout))
+      })
+
+      it('should name the npm scripts in .env.example', function () {
+        const contents = fs.readFileSync(path.resolve(ctx.dir, '.env.example'), 'utf8')
+        assert.ok(/`npm start` and `npm run dev`/.test(contents))
+      })
+
+      it('should install dependencies with npm in the image', function () {
+        const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
+        assert.ok(contents.includes('\nRUN npm install -g npm@' + VERSIONS.npm.slice(1) + '\n'))
+        assert.ok(/^COPY package\*\.json \.npmrc \.\/$/m.test(contents))
+        assert.ok(/^RUN npm ci --omit=dev$/m.test(contents))
+        assert.ok(!/pnpm/.test(contents))
+      })
+
+      it('should refuse to install with pnpm', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        exec('pnpm install', { cwd: ctx.dir, env: utils.childEnvironment() }, function (err, stdout, stderr) {
+          assert.ok(err)
+          assert.ok(/configured to use npm/.test(stdout + stderr))
+          assert.ok(!fs.existsSync(path.resolve(ctx.dir, 'node_modules')))
+          done()
+        })
+      })
+
+      it('should have installable dependencies', function (done) {
+        if (NPM_MAJOR < 12) return this.skip()
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx.dir, done)
+      })
+
+      it('should pass its tests', function (done) {
+        if (NPM_MAJOR < 12) return this.skip()
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx.dir, 'test', done)
+      })
+    })
+
+    describe('with an unsupported package manager', function () {
+      const ctx = setupTestEnvironment('pm unsupported')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx.dir, ['--pm=yarn'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/Usage: pnpm create express-new@latest \[dir\] \[options\]/.test(stdout))
+          assert.ok(/error: unsupported package manager `yarn'/.test(stderr))
+          assert.strictEqual(fs.readdirSync(ctx.dir).length, 0, 'should not create files')
+          done()
+        })
+      })
+    })
+
+    describe('without an argument', function () {
+      const ctx = setupTestEnvironment('pm missing')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx.dir, ['--pm'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--pm <name>' argument missing/.test(stderr))
+          done()
+        })
+      })
+    })
+  })
+
   describe('--no-view', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -1709,7 +1864,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--no-view'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 15)
+        assert.strictEqual(ctx.files.length, 16)
         done()
       })
     })
@@ -1732,16 +1887,16 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
-    it('should pass npm test', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1786,7 +1941,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--ts'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -1821,21 +1976,21 @@ describe('express(1)', function () {
     })
 
     it('should have installable dependencies', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmInstall(ctx.dir, done)
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
     })
 
     it('should pass type checking', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'typecheck', done)
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'typecheck', done)
     })
 
-    it('should pass npm test', function (done) {
-      this.timeout(NPM_INSTALL_TIMEOUT)
-      npmRun(ctx.dir, 'test', done)
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
     })
 
-    describe('npm start', function () {
+    describe('start', function () {
       before('start app', function () {
         this.app = new AppRunner(ctx.dir)
       })
@@ -1885,13 +2040,13 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx0.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx0.dir, done)
       })
 
       it('should pass type checking', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmRun(ctx0.dir, 'typecheck', done)
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx0.dir, 'typecheck', done)
       })
     })
 
@@ -1938,7 +2093,7 @@ describe('express(1)', function () {
       it('should print usage', function (done) {
         runRaw(ctx.dir, ['--view'], function (err, code, stdout) {
           if (err) return done(err)
-          assert.ok(/Usage: npm create express-new@latest \[dir\] -- \[options\]/.test(stdout))
+          assert.ok(/Usage: pnpm create express-new@latest \[dir\] \[options\]/.test(stdout))
           assert.ok(/--help/.test(stdout))
           assert.ok(/--version/.test(stdout))
           done()
@@ -1994,7 +2149,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'ejs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 17, 'should have 17 files')
+          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
           done()
         })
       })
@@ -2018,11 +2173,11 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx.dir, done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx.dir)
         })
@@ -2058,7 +2213,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'hbs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 18)
+          assert.strictEqual(ctx.files.length, 19)
           done()
         })
       })
@@ -2083,11 +2238,11 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx.dir, done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx.dir)
         })
@@ -2123,7 +2278,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'pug'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 18)
+          assert.strictEqual(ctx.files.length, 19)
           done()
         })
       })
@@ -2148,11 +2303,11 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx.dir, done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx.dir)
         })
@@ -2188,7 +2343,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'twig'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 18)
+          assert.strictEqual(ctx.files.length, 19)
           done()
         })
       })
@@ -2213,11 +2368,11 @@ describe('express(1)', function () {
       })
 
       it('should have installable dependencies', function (done) {
-        this.timeout(NPM_INSTALL_TIMEOUT)
-        npmInstall(ctx.dir, done)
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx.dir, done)
       })
 
-      describe('npm start', function () {
+      describe('start', function () {
         before('start app', function () {
           this.app = new AppRunner(ctx.dir)
         })
@@ -2248,12 +2403,15 @@ describe('express(1)', function () {
   })
 })
 
-function npmInstall (dir, callback) {
+// install with the package manager the app requires
+function install (dir, callback) {
   const env = utils.childEnvironment()
+  const pm = utils.packageManager(dir)
+  const flags = pm === 'npm' ? ' --no-audit --no-fund' : ''
 
-  exec('npm install --prefer-offline --no-audit --no-fund', { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stderr) {
+  exec(pm + ' install --prefer-offline' + flags, { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stdout, stderr) {
     if (err) {
-      err.message += stderr
+      err.message += stdout + stderr
       callback(err)
       return
     }
@@ -2262,10 +2420,10 @@ function npmInstall (dir, callback) {
   })
 }
 
-function npmRun (dir, script, callback) {
+function runScript (dir, script, callback) {
   const env = utils.childEnvironment()
 
-  exec('npm run ' + script, { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stdout, stderr) {
+  exec(utils.packageManager(dir) + ' run ' + script, { cwd: dir, env, maxBuffer: STDERR_MAX_BUFFER }, function (err, stdout, stderr) {
     if (err) {
       err.message += stdout + stderr
       callback(err)

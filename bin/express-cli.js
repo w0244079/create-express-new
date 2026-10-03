@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 import util from 'node:util'
-import { LOGGERS, VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp } from '../lib/app.js'
+import { DEFAULT_PACKAGE_MANAGER, LOGGERS, PACKAGE_MANAGERS, VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp, scriptCommand } from '../lib/app.js'
 import { CancelError } from '../lib/prompts.js'
 import { wizard } from '../lib/wizard.js'
 
@@ -30,6 +30,7 @@ const OPTIONS = {
   logger: { type: 'string' },
   'no-git': { type: 'boolean' },
   'no-view': { type: 'boolean' },
+  pm: { type: 'string' },
   'rate-limit': { type: 'boolean' },
   session: { type: 'boolean' },
   ts: { type: 'boolean' },
@@ -126,19 +127,20 @@ function createApplication (dir, entries, leftovers, options, done) {
   if (leftovers.length) {
     warning('these existing files are not used by the new app, so they were left as they are:\n' +
       leftovers.map((file) => '  ' + path.join(dir, file)).join('\n') + '\n' +
-      'remove them if they are from an earlier app in another language or view engine')
+      'remove them if they are from an earlier app with other options')
   }
 
   // dependencies installed by the wizard print next steps afterwards
   if (!options.install) {
-    printNextSteps(dir, true)
+    printNextSteps(dir, options.pm, true)
   }
 
   done(0)
 }
 
 /**
- * Run npm install in the generated app, when the wizard asked to.
+ * Install the generated app's dependencies with its package manager, when
+ * the wizard asked to.
  *
  * @param {object} options
  * @param {number} code
@@ -148,25 +150,33 @@ function installDependencies (options, code) {
   if (code !== 0 || !options.install) return exit(code)
 
   const dir = options._[0]
+  const pm = options.pm
 
   console.log('   installing dependencies...')
   console.log()
 
-  const child = spawn('npm', ['install'], {
+  const child = spawn(pm, ['install'], {
     cwd: dir,
     shell: process.platform === 'win32',
     stdio: 'inherit'
   })
 
+  // a package manager that cannot be started fails with an error, then closes
+  let failed = false
+
   child.on('error', (err) => {
-    error('npm install failed: ' + err.message)
-    printNextSteps(dir, true)
+    failed = true
+    error(err.code === 'ENOENT'
+      ? pm + ' is not installed, see ' + PACKAGE_MANAGERS[pm].docs
+      : pm + ' install failed: ' + err.message)
+    printNextSteps(dir, pm, true)
     exit(1)
   })
 
   child.on('close', (status) => {
-    if (status !== 0) error('npm install failed')
-    printNextSteps(dir, status !== 0)
+    if (failed) return
+    if (status !== 0) error(pm + ' install failed')
+    printNextSteps(dir, pm, status !== 0)
     exit(status === 0 ? 0 : 1)
   })
 }
@@ -175,10 +185,11 @@ function installDependencies (options, code) {
  * Display the commands to run the generated app.
  *
  * @param {string} dir
- * @param {boolean} install include the npm install step
+ * @param {string} pm the app's package manager
+ * @param {boolean} install include the install step
  */
 
-function printNextSteps (dir, install) {
+function printNextSteps (dir, pm, install) {
   const prompt = launchedFromCmd() ? '>' : '$'
 
   if (dir !== '.') {
@@ -190,15 +201,15 @@ function printNextSteps (dir, install) {
   if (install) {
     console.log()
     console.log('   install dependencies:')
-    console.log('     %s npm install', prompt)
+    console.log('     %s %s install', prompt, pm)
   }
 
   console.log()
   console.log('   run the app:')
-  console.log('     %s npm start', prompt)
+  console.log('     %s %s', prompt, scriptCommand(pm, 'start'))
   console.log()
   console.log('   run the app in development, restarting on change:')
-  console.log('     %s npm run dev', prompt)
+  console.log('     %s %s', prompt, scriptCommand(pm, 'dev'))
   console.log()
 }
 
@@ -271,6 +282,10 @@ function main (options, done) {
     usage()
     error('option `--logger <name>\' argument missing')
     done(1)
+  } else if (options.pm === '') {
+    usage()
+    error('option `--pm <name>\' argument missing')
+    done(1)
   } else {
     // Path
     const destinationPath = options._[0] || '.'
@@ -317,6 +332,13 @@ function main (options, done) {
     if (!LOGGERS.includes(options.logger)) {
       usage()
       error('unsupported logger `' + options.logger + "'")
+      return done(1)
+    }
+
+    // Unsupported package managers
+    if (!Object.hasOwn(PACKAGE_MANAGERS, options.pm)) {
+      usage()
+      error('unsupported package manager `' + options.pm + "'")
       return done(1)
     }
 
@@ -428,6 +450,7 @@ function parseOptions (argv) {
   options.keepConfig = Boolean(options['keep-config'])
   options.rateLimit = Boolean(options['rate-limit'])
   options.logger ??= 'morgan'
+  options.pm ??= DEFAULT_PACKAGE_MANAGER
 
   return options
 }
@@ -438,7 +461,8 @@ function parseOptions (argv) {
 
 function usage () {
   console.log('')
-  console.log('  Usage: npm create express-new@latest [dir] -- [options]')
+  console.log('  Usage: pnpm create express-new@latest [dir] [options]')
+  console.log('         npm create express-new@latest [dir] -- [options]')
   console.log('         npx create-express-new [options] [dir]')
   console.log('         express [options] [dir]   (when installed globally)')
   console.log('')
@@ -461,11 +485,13 @@ function usage () {
   console.log('        --uploads        add multer and an upload route at /uploads')
   console.log('        --logger <name>  request logger (morgan|pino) (defaults to morgan)')
   console.log('        --docker         add a Dockerfile for a production image')
-  console.log('        --lint           add ESLint and an npm run lint script')
+  console.log('        --lint           add ESLint and a lint script')
+  console.log('        --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('        --keep-config    keep existing config files (.env.example, Dockerfile,')
-  console.log('                         .dockerignore, tsconfig.json, eslint.config.*)')
+  console.log('                         .dockerignore, tsconfig.json, eslint.config.*,')
+  console.log('                         pnpm-workspace.yaml, .npmrc)')
   console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')
 }

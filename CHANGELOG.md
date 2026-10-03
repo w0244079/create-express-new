@@ -19,8 +19,8 @@ All notable changes to this project are documented here. The format is based on
   form in apps with views; with `--csrf` it checks the token before saving the file, and with
   `--docker` the image has a writable `uploads` folder
 - With `--csrf`, an example form at `/users/new` and CSRF setup in its own `csrf.js`
-- `--logger=pino` logs requests as JSON with pino-http instead of morgan, pretty printed by
-  `npm run dev`
+- `--logger=pino` logs requests as JSON with pino-http instead of morgan, pretty printed by the
+  `dev` script
 - `TRUST_PROXY` sets the proxies the app trusts, for apps with `--rate-limit` or `--session`
 - The wizard offers express-rate-limit and express-session (for web apps) with the other middleware,
   asks about CSRF protection when sessions are chosen, and asks which request logger to use
@@ -31,8 +31,28 @@ All notable changes to this project are documented here. The format is based on
   keep the config files or cancel
 - The wizard's directory prompt hints that `.` is the current directory
 
+- `--pm` sets the package manager an app requires, `pnpm` (the default) or `npm`, as
+  `devEngines.packageManager` in `package.json`, so other package managers refuse to install the
+  app or run its scripts
+- Settings that protect installs from compromised packages in every app: `pnpm-workspace.yaml` for
+  pnpm apps (new releases wait 3 days, install scripts of dependencies are not run, dependencies of
+  dependencies cannot come from git or URLs, releases with weaker proof of origin than earlier ones
+  are refused, and the pnpm version recorded in `pnpm-lock.yaml` is the one that runs) and `.npmrc`
+  for npm apps (new releases wait 3 days; npm 12 does not run install scripts or allow git
+  dependencies by default); `--keep-config` keeps existing ones
+- The wizard asks which package manager the app requires and installs dependencies with it
+- `npm run versions` reports a version floor released under 3 days ago as too new for generated apps
+  to install, and `--update` lowers it; floors are only raised to releases at least 7 days old
+
 ### Changed
 
+- **Breaking:** apps require pnpm 11 or newer by default, and `npm install` is refused in them; pass
+  `--pm=npm` for an app that requires npm, which now has to be npm 12 or newer
+- The usage, next steps, `.env.example` and the wizard's equivalent command name the app's package
+  manager, such as `pnpm create express-new@latest my-app --ts` and `pnpm dev`
+- `--docker` images install dependencies with the app's package manager, at a fixed version, in a
+  build stage of their own, so the package manager is not in the final image
+- The `@types/node` and `globals` version floors are lowered to releases that are over 3 days old
 - Every app's error handler logs server errors (5xx) with `console.error`, which no error handler
   did before, so a 500 only showed as a status in the request log
 - An existing `.gitignore` gets the missing lines added instead of being replaced
@@ -40,7 +60,8 @@ All notable changes to this project are documented here. The format is based on
 - The command line lists the files it would overwrite before asking to continue in a non-empty
   directory
 - A warning lists existing files the new app does not use but other options generate (code in the
-  other language, the other ESLint config, other view engines' templates); they are not removed
+  other language, the other ESLint config, other view engines' templates, pnpm settings in an npm
+  app); they are not removed
 
 ### Fixed
 
@@ -56,6 +77,8 @@ All notable changes to this project are documented here. The format is based on
 - An overwritten or identical `bin/www` is made executable, as writing an existing file kept its mode
 - A file where the app needs a folder (or a folder where it needs a file) is reported before
   anything is written, instead of failing with a partly generated app
+- The wizard reports a package manager that is not installed once, with where to get it, instead of
+  printing the failure and next steps twice
 
 ## [1.0.0] - 2026-10-02
 
