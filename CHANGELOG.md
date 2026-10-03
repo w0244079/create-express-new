@@ -84,7 +84,7 @@ All notable changes to this project are documented here. The format is based on
 
 The first release of `create-express-new`, a fork of
 [`express-generator`](https://github.com/expressjs/generator) 4.16.1 reimagined for Express 5 and
-current Node.js. See [Changes From express-generator](README.md#changes-from-express-generator) for
+current Node.js. See [Changes from express-generator](docs/changes-from-express-generator.md) for
 the full list and a table for migrating commands.
 
 ### Added
