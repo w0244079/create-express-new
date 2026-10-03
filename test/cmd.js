@@ -41,6 +41,12 @@ describe('express(1)', function () {
       assert.strictEqual(ctx.warnings.length, 0)
     })
 
+    it('should log server errors in the error handler', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^ {2}if \(status >= 500\) console\.error\(err\);\n/m.test(contents))
+      assert.ok(/^ {2}res\.status\(status\);$/m.test(contents))
+    })
+
     it('should not start the wizard without a terminal', function () {
       assert.ok(!/Project directory/.test(ctx.stdout))
     })
@@ -416,6 +422,11 @@ describe('express(1)', function () {
       ctx.files.forEach(function (name) {
         assert.ok(!/^(views|public)\//.test(name), 'should not have ' + name)
       })
+    })
+
+    it('should log server errors in the error handler', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^ {2}if \(status >= 500\) console\.error\(err\);\n/m.test(contents))
     })
 
     it('should only parse JSON request bodies', function () {

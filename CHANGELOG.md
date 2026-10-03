@@ -33,6 +33,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Every app's error handler logs server errors (5xx) with `console.error`, which no error handler
+  did before, so a 500 only showed as a status in the request log
 - An existing `.gitignore` gets the missing lines added instead of being replaced
 - Existing files with the same contents are left alone, logged as `identical`
 - The command line lists the files it would overwrite before asking to continue in a non-empty

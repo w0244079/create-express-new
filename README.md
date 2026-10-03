@@ -87,10 +87,10 @@ Every app has a `GET /health` endpoint that responds with `{ "status": "ok" }`, 
 container health checks and uptime monitors. It is defined before the middleware, so it stays fast and
 out of the request logs.
 
+Every app logs server errors (5xx) with `console.error`, but not client errors (4xx) such as a 404.
 Web apps with a view engine render errors with the `error` view. With `--no-view`, errors are plain
-text instead: client errors (4xx) show their message, server errors (5xx) only say
-`Internal Server Error` in production and are logged with `console.error`, and development shows every
-error's stack.
+text instead: client errors show their message, server errors only say `Internal Server Error` in
+production, and development shows every error's stack.
 
 ### JSON APIs
 

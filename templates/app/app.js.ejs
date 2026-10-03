@@ -90,12 +90,17 @@ app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
 <% } else { -%>
 app.use((err, req, res, next) => {
 <% } -%>
+  const status = err.status || 500;
+
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
+
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
 
   // render the error page
-  res.status(err.status || 500);
+  res.status(status);
   res.render('error');
 });
 
@@ -113,6 +118,9 @@ app.use((err, req, res, next) => {
 <% } -%>
   const status = err.status || 500;
   const development = req.app.get('env') === 'development';
+
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
 
   // only expose client error messages, or every error in development
   res.status(status).json({
