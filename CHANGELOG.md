@@ -20,9 +20,12 @@ All notable changes to this project are documented here. The format is based on
 - Existing files with the same contents are left alone, logged as `identical`
 - The command line lists the files it would overwrite before asking to continue in a non-empty
   directory
+- A warning lists existing files the new app does not use but other options generate (code in the
+  other language, the other ESLint config, other view engines' templates); they are not removed
 
 ### Fixed
 
+- An overwritten or identical `bin/www` is made executable, as writing an existing file kept its mode
 - A file where the app needs a folder (or a folder where it needs a file) is reported before
   anything is written, instead of failing with a partly generated app
 

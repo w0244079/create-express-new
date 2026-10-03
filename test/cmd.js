@@ -327,6 +327,28 @@ describe('express(1)', function () {
     })
   })
 
+  describe('(leftover files)', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should warn about files from another view engine and ESLint config', function (done) {
+      fs.mkdirSync(path.join(ctx.dir, 'views'))
+      fs.writeFileSync(path.join(ctx.dir, 'views', 'index.ejs'), '')
+      fs.writeFileSync(path.join(ctx.dir, 'eslint.config.js'), '')
+      fs.writeFileSync(path.join(ctx.dir, 'Dockerfile'), '')
+
+      runRaw(ctx.dir, ['--force', '--cjs', '--lint', '.'], function (err, code, stdout, stderr) {
+        if (err) return done(err)
+        assert.strictEqual(code, 0)
+        const [warning] = utils.parseWarnings(stderr)
+        assert.ok(/eslint\.config\.js/.test(warning))
+        assert.ok(/views[/\\]index\.ejs/.test(warning))
+        assert.ok(!/Dockerfile/.test(warning), 'should not warn about files that may be the user\'s own')
+        assert.ok(fs.existsSync(path.join(ctx.dir, 'views', 'index.ejs')), 'should not remove leftover files')
+        done()
+      })
+    })
+  })
+
   describe('--keep-config', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -335,9 +357,14 @@ describe('express(1)', function () {
       fs.writeFileSync(path.join(ctx.dir, 'tsconfig.json'), '{}\n')
       fs.writeFileSync(path.join(ctx.dir, '.gitignore'), 'dist/\nnode_modules/\n')
 
-      runRaw(ctx.dir, ['--ts', '--force', '--keep-config', '.'], function (err, code, stdout) {
+      runRaw(ctx.dir, ['--ts', '--force', '--keep-config', '.'], function (err, code, stdout, stderr) {
         if (err) return done(err)
         assert.strictEqual(code, 0)
+        assert.deepStrictEqual(utils.parseWarnings(stderr), [
+          'these existing files are not used by the new app, so they were left as they are:\n' +
+          '  app.js\n' +
+          'remove them if they are from an earlier app in another language or view engine'
+        ])
         assert.ok(/keep.*: tsconfig\.json/.test(stdout))
         assert.ok(/update.*: \.gitignore/.test(stdout))
         assert.strictEqual(fs.readFileSync(path.join(ctx.dir, 'tsconfig.json'), 'utf8'), '{}\n')
@@ -354,9 +381,16 @@ describe('express(1)', function () {
     })
 
     it('should leave identical files alone when run again', function (done) {
+      fs.chmodSync(path.join(ctx.dir, 'bin', 'www.ts'), 0o644)
+
       runRaw(ctx.dir, ['--ts', '--force', '.'], function (err, code, stdout) {
         if (err) return done(err)
         assert.strictEqual(code, 0)
+
+        if (process.platform !== 'win32') {
+          assert.strictEqual(fs.statSync(path.join(ctx.dir, 'bin', 'www.ts')).mode & 0o111, 0o111, 'should make bin/www.ts executable again')
+        }
+
         assert.ok(/identical.*: app\.ts/.test(stdout))
         assert.ok(/keep.*: \.gitignore/.test(stdout))
         assert.ok(/overwrite.*: tsconfig\.json/.test(stdout))

@@ -79,17 +79,19 @@ function confirm (msg, fn) {
  * Create application at the given directory, from its plan. Existing files
  * with other contents are overwritten, except config files with
  * `--keep-config`, and an existing .gitignore gets the missing lines.
+ * Leftover files from other options are left in place, with a warning.
  *
- * @param {string} name
  * @param {string} dir
+ * @param {object[]} entries
+ * @param {string[]} leftovers
  * @param {object} options
  * @param {function} done
  */
 
-function createApplication (name, dir, options, done) {
+function createApplication (dir, entries, leftovers, options, done) {
   console.log()
 
-  for (const entry of planApp(name, options)) {
+  for (const entry of entries) {
     const file = path.join(dir, entry.path)
 
     if (entry.type === 'dir') {
@@ -103,6 +105,7 @@ function createApplication (name, dir, options, done) {
       write(file, entry.contents, entry.mode)
     } else if (existing === entry.contents) {
       log('identical', file)
+      executable(file, entry.mode)
     } else if (entry.merge) {
       const merged = mergeLines(existing, entry.contents)
       if (merged === existing) log('keep', file)
@@ -111,7 +114,14 @@ function createApplication (name, dir, options, done) {
       log('keep', file)
     } else {
       write(file, entry.contents, entry.mode, 'overwrite')
+      executable(file, entry.mode)
     }
+  }
+
+  if (leftovers.length) {
+    warning('these existing files are not used by the new app, so they were left as they are:\n' +
+      leftovers.map((file) => '  ' + path.join(dir, file)).join('\n') + '\n' +
+      'remove them if they are from an earlier app in another language or view engine')
   }
 
   // dependencies installed by the wizard print next steps afterwards
@@ -295,7 +305,8 @@ function main (options, done) {
     }
 
     // Check the destination before writing anything
-    const { blockers, conflicts } = checkDestination(destinationPath, planApp(appName, options))
+    const entries = planApp(appName, options)
+    const { blockers, conflicts, leftovers } = checkDestination(destinationPath, entries)
 
     if (blockers.length) {
       error('cannot create the app:\n' + blockers.join('\n'))
@@ -307,7 +318,7 @@ function main (options, done) {
     // Generate application
     emptyDirectory(destinationPath, (empty) => {
       if (empty || options.force) {
-        createApplication(appName, destinationPath, options, done)
+        createApplication(destinationPath, entries, leftovers, options, done)
       } else {
         if (overwrites.length) {
           console.log()
@@ -319,7 +330,7 @@ function main (options, done) {
         confirm('destination is not empty, continue? [y/N] ', (ok) => {
           if (ok) {
             process.stdin.destroy()
-            createApplication(appName, destinationPath, options, done)
+            createApplication(destinationPath, entries, leftovers, options, done)
           } else {
             console.error('aborting')
             done(1)
@@ -437,6 +448,23 @@ function warning (message) {
     console.error('  warning: %s', line)
   })
   console.error()
+}
+
+/**
+ * Make an existing file executable when its planned mode is, as writing it
+ * only sets the mode of new files. Adds execute where read is allowed.
+ *
+ * @param {string} file
+ * @param {number} mode
+ */
+
+function executable (file, mode) {
+  if (!(mode & 0o111)) return
+
+  const current = fs.statSync(file).mode & 0o777
+  const wanted = current | ((current & 0o444) >> 2)
+
+  if (wanted !== current) fs.chmodSync(file, wanted)
 }
 
 /**

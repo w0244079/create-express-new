@@ -33,7 +33,8 @@ When the directory already has files the app would replace, the wizard lists the
 to overwrite them, keep your config files (see `--keep-config` below) or cancel. Files whose contents
 are already the same are left alone. An existing `.gitignore` is never replaced: the lines it is
 missing are added at the end. If a file is where the app needs a folder (or a folder where it needs
-a file), nothing is written.
+a file), nothing is written. Files from an earlier app in another language or view engine, such as
+an `app.js` next to a new `app.ts`, are left in place with a warning listing them.
 
 Or pass the directory and options directly. `npm create` passes the options after `--` on to the
 generator (`npx create-express-new my-app --ts --helmet` works too, without the `--`):
