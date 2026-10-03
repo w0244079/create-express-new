@@ -155,70 +155,18 @@ files with `--api`). Add more with:
 - `--helmet`: [helmet](https://helmetjs.github.io/) security headers
 - `--compression`: gzip/brotli response [compression](https://github.com/expressjs/compression)
 - `--cookies`: [cookie-parser](https://github.com/expressjs/cookie-parser), for reading `req.cookies`
-- `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins. Any origin is
-  allowed by default; set `CORS_ORIGIN` (see `.env.example`) to a comma-separated list of origins to
-  allow only your front ends.
+- `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins
 - `--rate-limit`: [express-rate-limit](https://express-rate-limit.mintlify.app/), limiting each client
-  to 100 requests every 15 minutes, with `RateLimit` headers and `429 Too Many Requests` responses
-  past the limit. Change the limit with `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`. It comes after the
-  static files, so only app routes count, and `/health` is never limited.
-- `--session` (web apps only): [express-session](https://github.com/expressjs/session), for
-  `req.session`. Set `SESSION_SECRET` to a long random string; the app refuses to start in production
-  without one. The session cookie is `SameSite=Lax`, and `Secure` over HTTPS. Sessions are kept in
-  memory, which loses them on restart and does not suit more than one process, so add a
-  [store](https://github.com/expressjs/session#compatible-session-stores) such as `connect-redis`
-  before going to production.
+  to 100 requests every 15 minutes
+- `--session` (web apps only): [express-session](https://github.com/expressjs/session), for `req.session`
 - `--csrf` (with `--session` and a view engine): [csrf-sync](https://github.com/Psifi-Solutions/csrf-sync)
-  CSRF protection, set up in `csrf.js`. Requests other than `GET`, `HEAD` and `OPTIONS` need the
-  session's token, or get `403 Forbidden`. Views get it as `csrfToken`, and the page layout has it in a
-  `<meta name="csrf-token">` tag. An example form at `/users/new` shows it in use, with a
-  `POST /users/new` that checks the name and redirects back. Send the token in a hidden `_csrf` form
-  field:
-
-  ```pug
-  form(method='post', action='/users/new')
-    input(type='hidden', name='_csrf', value=csrfToken)
-  ```
-
-  or, from JavaScript, in an `x-csrf-token` header:
-
-  ```js
-  const token = document.querySelector('meta[name="csrf-token"]').content;
-  await fetch('/users/new', { method: 'POST', headers: { 'x-csrf-token': token }, body: new URLSearchParams({ name: 'Ada' }) });
-  ```
-
+  CSRF protection for forms
 - `--uploads`: [multer](https://github.com/expressjs/multer) and a `POST /uploads` route that takes one
-  file in a `file` field, with a form at `GET /uploads` in apps with views (JSON APIs and `--no-view`
-  apps respond with the saved file's details as JSON instead). See [File uploads](#file-uploads).
+  file of up to 5 MB
 
-`--rate-limit` and `--session` also make the app trust the `X-Forwarded-*` headers of the proxies set
-in `TRUST_PROXY`, the number of proxies (such as `1` behind one load balancer) or their addresses.
-Behind a proxy, set it so the rate limit counts each client rather than the proxy, and session
-cookies are `Secure` when the proxy terminates HTTPS. Leave it unset otherwise, as clients could
-then fake their address.
-
-### File uploads
-
-`--uploads` adds multer to the `/uploads` route only, rather than to every route, so no other route
-accepts files. Its `routes/uploads.js`:
-
-- saves files in `uploads/` under random names, never the name the client sent, and does not serve
-  them as static files, where an uploaded HTML or SVG file could run scripts on your site. Both
-  `.gitignore` and `.dockerignore` ignore the folder.
-- accepts one file of up to 5 MB (set `UPLOAD_MAX_SIZE` in bytes to change it), responding with
-  `413` for larger files and `400` for other upload errors.
-- accepts only PDF, GIF, JPEG, PNG, WebP and plain text files, responding with `415` for others. Edit
-  `TYPES` to change the list. The type is the one the client sends, so check a file's contents too
-  before trusting it.
-
-With `--csrf`, the CSRF check for the whole app skips `/uploads`, as multer reads the form, including
-its `_csrf` field, only inside the route. The route checks the token itself as soon as the file
-arrives, before saving anything, so the `_csrf` field must come before the file in the form, as it
-does in the generated one. JavaScript can send the token in an `x-csrf-token` header instead.
-
-With `--docker`, the image has an `uploads` folder the app can write to. Files saved in a container are
-lost when it is replaced, so mount a volume at `/app/uploads`, or store files somewhere else, such as
-object storage, in production.
+[Optional middleware](docs/middleware.md) covers each one's settings and environment variables,
+sending the CSRF token from forms and JavaScript, running behind a proxy, and how
+[uploaded files](docs/middleware.md#file-uploads) are stored and checked.
 
 ### Request logging
 
@@ -230,36 +178,14 @@ not logged while the tests run.
 
 ### Package manager
 
-Every app requires one package manager, pnpm by default or npm with `--pm=npm`, and has settings
-that protect installs from compromised packages:
+Every app requires one package manager, pnpm by default or npm with `--pm=npm`, so other package
+managers refuse to install the app or run its scripts. It also has settings that protect installs
+from compromised packages: new releases wait 3 days before they are installed, and the install
+scripts of dependencies are not run. An npm app needs npm 12 or newer, which does not come with
+Node.js 22 or 24.
 
-| | pnpm | npm |
-| --- | --- | --- |
-| Required version | 11 or newer | 12 or newer |
-| Settings file | `pnpm-workspace.yaml` | `.npmrc` |
-| New releases | wait 3 days | wait 3 days |
-| Install scripts of dependencies | not run; the install stops until you allow or deny them | not run unless approved |
-| Dependencies from git | refused in dependencies of dependencies, as are URLs | refused |
-| Releases with weaker proof of origin than earlier ones | refused | allowed |
-
-npm's rules for install scripts and git are npm 12's defaults, not settings in `.npmrc`.
-
-- **npm 12** does not come with Node.js 22 or 24: run `npm install -g npm@12`, on Node.js 22.22.2,
-  24.15 or newer.
-- **The requirement** is `devEngines.packageManager` in `package.json`. npm refuses to install or
-  run scripts in a pnpm app, pnpm refuses in an npm app, and Yarn refuses when run through Corepack.
-  It is a guard rail, not a lock: `npm install --force` ignores it, and running `node` directly, as
-  the Docker image does, involves no package manager.
-- **The pnpm version** that installed a pnpm app is recorded in `pnpm-lock.yaml`. Any other pnpm
-  downloads and runs that version, so everyone, and the Docker image, installs with the same one.
-- **A release you need before it is 3 days old**: list the package under `minimumReleaseAgeExclude`
-  in `pnpm-workspace.yaml`.
-- **A dependency with an install script**, such as a native module, stops `pnpm install` until you
-  run `pnpm approve-builds`, or list it under `allowBuilds` in `pnpm-workspace.yaml` as `true` or
-  `false`.
-- **To change package manager later**, edit `devEngines.packageManager`, delete the old settings
-  file, lockfile and `node_modules`, and add the new package manager's settings file. Generating an
-  app with the other `--pm` in an empty directory gives you one to copy.
+[Package manager](docs/package-manager.md) compares the pnpm and npm settings, and covers allowing
+a dependency's install script, installing a release sooner and changing package manager later.
 
 ### Docker
 
@@ -319,85 +245,13 @@ support TypeScript 7 yet, these apps use TypeScript 6.
 
 ## Changes From express-generator
 
-This fork started from `express-generator` 4.16.1.
+This fork started from `express-generator` 4.16.1. It generates Express 5 apps as ES modules, with
+pug in place of jade, for Node.js 22.9 or newer. `--view=<engine>` replaces the `--ejs`, `--hbs` and
+`--pug` aliases, and apps use plain CSS instead of a CSS preprocessor.
 
-### Added
-
-- ES module output by default, plus `--cjs` for CommonJS and `--ts` for TypeScript
-- `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in production
-- `.env` loading in the `start` and `dev` scripts, with a generated `.env.example`
-- An interactive wizard when run without arguments in a terminal, which shows the equivalent command
-- A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects
-- Request logs are skipped while the generated tests run, keeping the test output readable
-- `--helmet`, `--compression`, `--cookies`, `--cors`, `--rate-limit`, `--session` and `--csrf` options
-  for opt-in middleware, `--uploads` for file uploads with multer, and `--logger=pino` for JSON request
-  logs
-- `--docker` for a production Dockerfile with a `HEALTHCHECK`
-- A `GET /health` endpoint for load balancers, container health checks and uptime monitors
-- `--lint` for ESLint, including typescript-eslint for TypeScript apps
-- A `dev` script using `node --watch`
-- A generated test suite using `node:test` and `fetch`, run by the `test` script
-- A required package manager for every app, pnpm by default or npm with `--pm=npm`, with settings
-  that delay new releases and do not run the install scripts of dependencies
-- Graceful shutdown on SIGINT and SIGTERM in `bin/www.js`
-- Clear errors for unknown view engines and conflicting options
-- `--view=jade` now warns and generates pug, jade's successor
-
-### Changed
-
-- Generates Express 5 apps (was Express 4.17) with current versions of every dependency,
-  including ejs 6, hbs 4, pug 3 and twig 3
-- The default view engine is pug (was jade)
-- `bin/www` is now `bin/www.js`, a short script built on `app.listen()`
-- Generated apps require Node.js 22.9 or newer (22.18 for TypeScript)
-- The generator itself is an ES module with a single dependency (ejs), down from five
-- Running without arguments in a terminal starts the wizard instead of generating into the current
-  directory; pass `.` to generate into the current directory
-- The confirmation prompt for non-empty directories lists the files that would be overwritten,
-  only accepts y, yes, ok or true, and aborts when STDIN closes without an answer
-- Generating into a non-empty directory leaves identical files alone and adds missing lines to an
-  existing `.gitignore` instead of replacing it; `--keep-config` keeps existing config files
-
-### Removed
-
-- The dust, hjs (Hogan.js), jade and vash view engines
-- CSS preprocessor support (`--css` for less, stylus, compass and sass): apps use plain CSS, which now
-  covers variables, nesting and more. See [Using Sass](#using-sass) to add it yourself.
-- The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
-- cookie-parser from the default middleware; use `--cookies`
-- The `debug` package and `DEBUG=...` start instructions; the server logs its port on start
-
-### Migrating commands
-
-| express-generator | create-express-new |
-| --- | --- |
-| `express --ejs` | `express --view=ejs` |
-| `express --hbs` | `express --view=hbs` |
-| `express --pug` | `express --view=pug` |
-| `express --hogan`, `--view=hjs` | not supported; `--view=hbs` (Handlebars) is the closest alternative |
-| `express --css=sass` | plain CSS, or add Sass as shown below |
-| `DEBUG=my-app:* npm start` | `pnpm start` or `pnpm dev` |
-
-## Using Sass
-
-To use [Sass](https://sass-lang.com/) in a generated app, install it and compile your stylesheets
-before the app starts:
-
-```bash
-$ pnpm add --save-dev sass --allow-build=@parcel/watcher
-$ mv public/stylesheets/style.css public/stylesheets/style.scss
-$ pnpm pkg set scripts.css="sass public/stylesheets:public/stylesheets" scripts.prestart="pnpm css"
-```
-
-`--allow-build` lets Sass's file watcher, `@parcel/watcher`, run its install script, which would
-otherwise stop the install. Sass works without it too: list `'@parcel/watcher': false` under
-`allowBuilds` in `pnpm-workspace.yaml` and leave the flag off.
-
-To recompile on change, run `pnpm exec sass --watch public/stylesheets:public/stylesheets` alongside
-`pnpm dev`.
-
-In an npm app, use `npm install --save-dev sass`, `npm pkg set` with `scripts.prestart="npm run css"`,
-and `npx sass --watch`.
+- [Changes from express-generator](docs/changes-from-express-generator.md): everything added,
+  changed and removed, and a table for migrating commands
+- [Using Sass](docs/sass.md): adding Sass to a generated app
 
 ## Contributing
 
@@ -410,39 +264,8 @@ $ npm run lint
 The tests install the generated apps with pnpm, so [install pnpm](https://pnpm.io/installation)
 first. The tests that install an npm app are skipped unless your npm is version 12 or newer.
 
-### Maintaining generated dependency versions
-
-The versions of the packages that generated apps depend on live in
-[`templates/versions.json`](templates/versions.json). Dependabot does not cover them, so check them with:
-
-```bash
-$ npm run versions              # report versions that are behind, too new, or have a new major
-$ npm run versions -- --update  # raise each version to the newest release in its major
-```
-
-- **Too new:** generated apps do not install a release until it is 3 days old, so an app cannot be
-  installed while a version floor is newer than that. The check reports the floor, and `--update`
-  lowers it. Versions are only raised to releases at least 7 days old, which leaves a margin.
-- **New majors** are reported but never applied; review the templates before changing the range.
-- **Packages under `hold`** are kept on an older major on purpose. A hold with an `until` condition,
-  such as TypeScript 6 for `--ts --lint`, is reported as ready to lift once the named package's
-  latest release supports the newer version, here when typescript-eslint supports TypeScript 7.
-- The file also holds the pnpm and npm versions that generated Dockerfiles install.
-- The `versions` workflow runs the check monthly.
-
-### Releasing
-
-Releases are published to npm by the `publish` workflow when a GitHub release is published, using
-[npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is needed.
-
-1. Move the `Unreleased` entries in [`CHANGELOG.md`](CHANGELOG.md) under the new version and date
-2. Bump the version without tagging yet: `npm version <major|minor|patch> --no-git-tag-version`
-3. Commit both, then tag and push: `git tag vX.Y.Z && git push origin HEAD vX.Y.Z`
-4. Publish a GitHub release for the tag, with the changelog entry as its notes:
-   `gh release create vX.Y.Z --title vX.Y.Z --notes-file <file>`
-
-The workflow checks that the tag matches `package.json`, then runs lint and the tests before
-publishing.
+See [Maintaining](docs/maintaining.md) for keeping the dependency versions of generated apps current,
+and for releasing.
 
 ## License
 
