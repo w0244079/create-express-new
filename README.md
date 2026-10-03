@@ -23,11 +23,17 @@ Run the generator with no arguments to be guided through the options (requires N
 $ npm create express-new@latest
 ```
 
-The wizard asks for the project directory, whether you are building a web app or a JSON API, the
-view engine, the language (JavaScript, TypeScript or CommonJS), optional middleware, extras (a
-Dockerfile and ESLint) and a `.gitignore`.
+The wizard asks for the project directory (enter `.` for the current directory), whether you are
+building a web app or a JSON API, the view engine, the language (JavaScript, TypeScript or CommonJS),
+optional middleware, extras (a Dockerfile and ESLint) and a `.gitignore`.
 Press Esc (or ←) to go back to the previous question; your earlier answers are kept. It then shows the
 equivalent command, so you can repeat the setup or use it in scripts, and offers to run `npm install`.
+
+When the directory already has files the app would replace, the wizard lists them and asks whether
+to overwrite them, keep your config files (see `--keep-config` below) or cancel. Files whose contents
+are already the same are left alone. An existing `.gitignore` is never replaced: the lines it is
+missing are added at the end. If a file is where the app needs a folder (or a folder where it needs
+a file), nothing is written.
 
 Or pass the directory and options directly. `npm create` passes the options after `--` on to the
 generator (`npx create-express-new my-app --ts --helmet` works too, without the `--`):
@@ -173,6 +179,8 @@ support TypeScript 7 yet, these apps use TypeScript 6.
         --lint           add ESLint and an npm run lint script
         --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
+        --keep-config    keep existing config files (.env.example, Dockerfile,
+                         .dockerignore, tsconfig.json, eslint.config.*)
         --version        output the version number
     -h, --help           output usage information
 
@@ -208,8 +216,10 @@ This fork started from `express-generator` 4.16.1.
 - The generator itself is an ES module with a single dependency (ejs), down from five
 - Running without arguments in a terminal starts the wizard instead of generating into the current
   directory; pass `.` to generate into the current directory
-- The confirmation prompt for non-empty directories only accepts y, yes, ok or true, and aborts
-  when STDIN closes without an answer
+- The confirmation prompt for non-empty directories lists the files that would be overwritten,
+  only accepts y, yes, ok or true, and aborts when STDIN closes without an answer
+- Generating into a non-empty directory leaves identical files alone and adds missing lines to an
+  existing `.gitignore` instead of replacing it; `--keep-config` keeps existing config files
 
 ### Removed
 

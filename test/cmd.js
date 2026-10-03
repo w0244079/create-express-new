@@ -294,6 +294,76 @@ describe('express(1)', function () {
         })
       })
     })
+
+    it('should list the files it would overwrite', function (done) {
+      const dir = path.join(ctx.dir, 'listed')
+
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(path.join(dir, 'app.js'), '// mine\n')
+      fs.writeFileSync(path.join(dir, 'notes.txt'), '')
+
+      runWithInput(ctx.dir, ['listed'], 'n\n', function (err, code, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(code, 1)
+        assert.ok(/these existing files will be overwritten:\s+listed[/\\]app\.js\s+destination is not empty/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(dir, 'app.js'), 'utf8'), '// mine\n')
+        done()
+      })
+    })
+
+    it('should not write anything when a file is in the way of a folder', function (done) {
+      const dir = path.join(ctx.dir, 'blocked')
+
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(path.join(dir, 'routes'), '')
+
+      runRaw(ctx.dir, ['--force', 'blocked'], function (err, code, stdout, stderr) {
+        if (err) return done(err)
+        assert.strictEqual(code, 1)
+        assert.ok(/error: routes is a file, where a folder is needed/.test(stderr))
+        assert.deepStrictEqual(fs.readdirSync(dir), ['routes'])
+        done()
+      })
+    })
+  })
+
+  describe('--keep-config', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should keep config files and overwrite the app', function (done) {
+      fs.writeFileSync(path.join(ctx.dir, 'app.js'), '// mine\n')
+      fs.writeFileSync(path.join(ctx.dir, 'tsconfig.json'), '{}\n')
+      fs.writeFileSync(path.join(ctx.dir, '.gitignore'), 'dist/\nnode_modules/\n')
+
+      runRaw(ctx.dir, ['--ts', '--force', '--keep-config', '.'], function (err, code, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(code, 0)
+        assert.ok(/keep.*: tsconfig\.json/.test(stdout))
+        assert.ok(/update.*: \.gitignore/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, 'tsconfig.json'), 'utf8'), '{}\n')
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, 'app.js'), 'utf8'), '// mine\n')
+        assert.ok(fs.existsSync(path.join(ctx.dir, 'app.ts')))
+        done()
+      })
+    })
+
+    it('should add the missing lines to an existing .gitignore', function () {
+      const gitignore = fs.readFileSync(path.join(ctx.dir, '.gitignore'), 'utf8')
+      assert.ok(gitignore.startsWith('dist/\nnode_modules/\n\n# Added by create-express-new\n.env\n'))
+      assert.strictEqual(gitignore.split('\n').filter((line) => line === 'node_modules/').length, 1)
+    })
+
+    it('should leave identical files alone when run again', function (done) {
+      runRaw(ctx.dir, ['--ts', '--force', '.'], function (err, code, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(code, 0)
+        assert.ok(/identical.*: app\.ts/.test(stdout))
+        assert.ok(/keep.*: \.gitignore/.test(stdout))
+        assert.ok(/overwrite.*: tsconfig\.json/.test(stdout))
+        assert.ok(!/create.*: package\.json/.test(stdout))
+        done()
+      })
+    })
   })
 
   describe('--api', function () {
