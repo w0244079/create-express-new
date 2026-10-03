@@ -88,9 +88,10 @@ container health checks and uptime monitors. It is defined before the middleware
 out of the request logs.
 
 Every app logs server errors (5xx) with `console.error`, but not client errors (4xx) such as a 404.
-Web apps with a view engine render errors with the `error` view. With `--no-view`, errors are plain
-text instead: client errors show their message, server errors only say `Internal Server Error` in
-production, and development shows every error's stack.
+Web apps with a view engine render errors with the `error` view, and `--no-view` apps respond with
+plain text. Either way, client errors show their message, server errors only say
+`Internal Server Error` outside development, so internal details are never sent, and development
+shows every error's message and stack.
 
 ### JSON APIs
 

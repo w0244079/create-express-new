@@ -44,6 +44,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- Web apps with views no longer show server errors' messages outside development, only
+  `Internal Server Error`, as JSON APIs already did
 - `--no-view` apps have their own error handler, responding with plain text and logging only server
   errors, instead of Express's default handler logging the stack of every error, including client
   errors such as invalid JSON

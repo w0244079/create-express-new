@@ -47,6 +47,11 @@ describe('express(1)', function () {
       assert.ok(/^ {2}res\.status\(status\);$/m.test(contents))
     })
 
+    it('should only show client error messages outside development', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^ {2}res\.locals\.message = err\.expose \|\| development \? err\.message : 'Internal Server Error';$/m.test(contents))
+    })
+
     it('should not start the wizard without a terminal', function () {
       assert.ok(!/Project directory/.test(ctx.stdout))
     })
