@@ -1695,6 +1695,13 @@ describe('express(1)', function () {
       assert.strictEqual(ctx.files.indexOf('views'), -1)
     })
 
+    it('should have a plain text error handler that logs server errors', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^\/\/ error handler, responding with plain text$/m.test(contents))
+      assert.ok(/^ {2}if \(status >= 500\) console\.error\(err\);$/m.test(contents))
+      assert.ok(!/createError/.test(contents), 'should keep the default 404 without http-errors')
+    })
+
     it('should have installable dependencies', function (done) {
       this.timeout(NPM_INSTALL_TIMEOUT)
       npmInstall(ctx.dir, done)
@@ -1730,6 +1737,15 @@ describe('express(1)', function () {
         request(this.app)
           .get('/does_not_exist')
           .expect(404, /Cannot GET \/does_not_exist/, done)
+      })
+
+      it('should respond to client errors with plain text', function (done) {
+        request(this.app)
+          .post('/')
+          .set('Content-Type', 'application/json')
+          .send('{bad')
+          .expect('Content-Type', /text\/plain/)
+          .expect(400, /in JSON at position 1/, done)
       })
     })
   })

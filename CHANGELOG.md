@@ -42,6 +42,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- `--no-view` apps have their own error handler, responding with plain text and logging only server
+  errors, instead of Express's default handler logging the stack of every error, including client
+  errors such as invalid JSON
 - twig error pages escape the error message and stack, as twig.js does not escape output by default
 - An overwritten or identical `bin/www` is made executable, as writing an existing file kept its mode
 - A file where the app needs a folder (or a folder where it needs a file) is reported before

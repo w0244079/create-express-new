@@ -121,6 +121,27 @@ app.use((err, req, res, next) => {
   });
 });
 
+<% } else { -%>
+// error handler, responding with plain text
+<% if (ts) { -%>
+app.use((err: Error & { status?: number; expose?: boolean }, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
+app.use((err, req, res, next) => {
+<% } -%>
+  const status = err.status || 500;
+  const development = req.app.get('env') === 'development';
+
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
+
+  // only expose client error messages, or every error and its stack in development
+  let message = 'Internal Server Error';
+  if (development) message = err.stack ?? err.message;
+  else if (err.expose) message = err.message;
+
+  res.status(status).type('text').send(message);
+});
+
 <% } -%>
 <% if (esm) { -%>
 export default app;

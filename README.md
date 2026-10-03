@@ -87,6 +87,11 @@ Every app has a `GET /health` endpoint that responds with `{ "status": "ok" }`, 
 container health checks and uptime monitors. It is defined before the middleware, so it stays fast and
 out of the request logs.
 
+Web apps with a view engine render errors with the `error` view. With `--no-view`, errors are plain
+text instead: client errors (4xx) show their message, server errors (5xx) only say
+`Internal Server Error` in production and are logged with `console.error`, and development shows every
+error's stack.
+
 ### JSON APIs
 
 `--api` generates a JSON API instead of a web app: no views, static files or form parsing, and
