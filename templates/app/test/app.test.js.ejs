@@ -47,7 +47,20 @@ describe('app', () => {
     assert.deepStrictEqual(await res.json(), { status: 'ok' });
   });
 
-<% if (api) { -%>
+<% if (rateLimit) { -%>
+  it('sends rate limit headers', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.ok(res.headers.has('ratelimit-policy'));
+  });
+
+<% } -%>
+<% if (csrf) { -%>
+  it('rejects posts without a CSRF token', async () => {
+    const res = await fetch(`${baseUrl}/users`, { method: 'POST' });
+    assert.strictEqual(res.status, 403);
+  });
+
+<% } -%><% if (api) { -%>
   it('responds to GET /', async () => {
     const res = await fetch(`${baseUrl}/`);
     assert.strictEqual(res.status, 200);

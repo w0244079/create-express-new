@@ -23,7 +23,7 @@ describe('wizard', function () {
   })
 
   it('should default to a pug web app with .gitignore and install', function () {
-    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]).then(function (result) {
+    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]).then(function (result) {
       assert.deepStrictEqual(result.options, {
         _: ['my-app'],
         '!': [],
@@ -36,9 +36,13 @@ describe('wizard', function () {
         force: false,
         git: true,
         helmet: false,
+        csrf: false,
         install: true,
         keepConfig: false,
         lint: false,
+        logger: 'morgan',
+        rateLimit: false,
+        session: false,
         ts: false,
         view: 'pug'
       })
@@ -52,6 +56,7 @@ describe('wizard', function () {
       DOWN, ENTER, // JSON API
       DOWN, ENTER, // TypeScript
       ' ', DOWN, DOWN, ' ', DOWN, ' ', ENTER, // helmet, cookie-parser and cors
+      ENTER, // morgan
       ' ', DOWN, ' ', ENTER, // Dockerfile and ESLint
       'n', // no .gitignore
       'n', // no install
@@ -79,7 +84,7 @@ describe('wizard', function () {
   })
 
   it('should ask for a CommonJS web app with a view engine', function () {
-    const keys = ['w', 'e', 'b', ENTER, ENTER, DOWN, ENTER, DOWN, DOWN, ENTER, ENTER, ENTER, ENTER, 'n', ENTER]
+    const keys = ['w', 'e', 'b', ENTER, ENTER, DOWN, ENTER, DOWN, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, 'n', ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.view, 'ejs')
@@ -88,11 +93,56 @@ describe('wizard', function () {
     })
   })
 
+  it('should ask for sessions, CSRF protection, a rate limit and pino', function () {
+    const keys = [
+      ENTER, ENTER, ENTER, ENTER, // directory, web app, pug, JavaScript
+      DOWN, DOWN, DOWN, DOWN, ' ', DOWN, ' ', ENTER, // express-rate-limit and express-session
+      ENTER, // CSRF protection
+      DOWN, ENTER, // pino
+      ENTER, ENTER, ENTER, ENTER // extras, .gitignore, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      const { options } = result
+      assert.strictEqual(options.rateLimit, true)
+      assert.strictEqual(options.session, true)
+      assert.strictEqual(options.csrf, true)
+      assert.strictEqual(options.logger, 'pino')
+      assert.ok(result.output.includes('npm create express-new@latest my-app -- --rate-limit --session --csrf --logger=pino'))
+    })
+  })
+
+  it('should not offer sessions for a JSON API', function () {
+    const keys = [ENTER, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.ok(result.output.includes('express-rate-limit'))
+      assert.ok(!result.output.includes('express-session'))
+      assert.ok(!result.output.includes('CSRF'))
+    })
+  })
+
+  it('should not ask for CSRF protection without a view engine', function () {
+    const keys = [
+      ENTER, ENTER, // directory, web app
+      DOWN, DOWN, DOWN, DOWN, ENTER, // no view engine
+      ENTER, // JavaScript
+      DOWN, DOWN, DOWN, DOWN, DOWN, ' ', ENTER, // express-session
+      ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.session, true)
+      assert.strictEqual(result.options.csrf, false)
+      assert.ok(!result.output.includes('CSRF'))
+    })
+  })
+
   it('should ask again when declining a non-empty directory', function () {
     fs.mkdirSync(path.join(cwd, 'busy'))
     fs.writeFileSync(path.join(cwd, 'busy', 'file.txt'), '')
 
-    const keys = ['b', 'u', 's', 'y', ENTER, 'n', 'n', 'e', 'w', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'u', 's', 'y', ENTER, 'n', 'n', 'e', 'w', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['new'])
@@ -102,7 +152,7 @@ describe('wizard', function () {
   })
 
   it('should force a non-empty directory when confirmed', function () {
-    const keys = ['b', 'u', 's', 'y', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'u', 's', 'y', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['busy'])
@@ -114,7 +164,7 @@ describe('wizard', function () {
   it('should accept the current directory', function () {
     fs.writeFileSync(path.join(cwd, 'notes.txt'), '')
 
-    const keys = ['.', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['.', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['.'])
@@ -133,7 +183,7 @@ describe('wizard', function () {
     fs.writeFileSync(path.join(cwd, 'old', 'app.js'), '// mine\n')
     fs.writeFileSync(path.join(cwd, 'old', '.env.example'), 'PORT=1\n')
 
-    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.ok(result.output.includes('These existing files will be overwritten'))
@@ -143,7 +193,7 @@ describe('wizard', function () {
   })
 
   it('should keep existing config files when chosen', function () {
-    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, DOWN, ENTER, ENTER]
+    const keys = ['o', 'l', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, DOWN, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.ok(result.output.includes('Keep my config files'))
@@ -159,7 +209,7 @@ describe('wizard', function () {
 
     const keys = [
       'o', 'l', 'd', ENTER, 'y', // directory
-      ENTER, ENTER, ENTER, ENTER, // kind, view, language, middleware
+      ENTER, ENTER, ENTER, ENTER, ENTER, // kind, view, language, middleware, logger
       ' ', ENTER, // Dockerfile
       ENTER, ENTER, // .gitignore, install
       DOWN, ENTER, // keep the Dockerfile
@@ -178,7 +228,7 @@ describe('wizard', function () {
     fs.mkdirSync(path.join(cwd, 'blocked'))
     fs.writeFileSync(path.join(cwd, 'blocked', 'routes'), '')
 
-    const keys = ['b', 'l', 'o', 'c', 'k', 'e', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['b', 'l', 'o', 'c', 'k', 'e', 'd', ENTER, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function () {
       throw new Error('expected the wizard to be cancelled')
@@ -188,7 +238,7 @@ describe('wizard', function () {
   })
 
   it('should go back to change the kind of app, skipping the view engine', function () {
-    const keys = [ENTER, ENTER, LEFT, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ENTER, ENTER, LEFT, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.api, true)
@@ -198,7 +248,7 @@ describe('wizard', function () {
   })
 
   it('should keep answers when going back', function () {
-    const keys = [ENTER, ENTER, ENTER, ENTER, ' ', ENTER, LEFT, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ENTER, ENTER, ENTER, ENTER, ' ', ENTER, LEFT, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.helmet, true)
@@ -206,7 +256,7 @@ describe('wizard', function () {
   })
 
   it('should go back from the summary to change an answer', function () {
-    const keys = [ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, LEFT, 'n', ENTER]
+    const keys = [ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, LEFT, 'n', ENTER]
 
     return answer(keys).then(function (result) {
       assert.strictEqual(result.options.install, false)
@@ -214,7 +264,7 @@ describe('wizard', function () {
   })
 
   it('should go back with Esc, keeping the typed directory', function () {
-    const keys = ['x', ENTER, ESC, 200, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = ['x', ENTER, ESC, 200, 'y', ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['xy'])
@@ -222,7 +272,7 @@ describe('wizard', function () {
   })
 
   it('should not go back from the first question', function () {
-    const keys = [ESC, 200, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [ESC, 200, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys).then(function (result) {
       assert.deepStrictEqual(result.options._, ['my-app'])
@@ -231,8 +281,8 @@ describe('wizard', function () {
 
   it('should leave out hints that do not fit a narrow terminal', function () {
     return Promise.all([
-      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 40 }),
-      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 120 })
+      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 40 }),
+      answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER], { columns: 120 })
     ]).then(function ([narrow, wide]) {
       // the Language hints are too long for 40 columns, the app kind hints fit
       assert.ok(!narrow.output.includes('runs directly on Node.js'))
@@ -245,7 +295,7 @@ describe('wizard', function () {
 
   it('should redraw wrapped lines in a narrow terminal', function () {
     const name = 'a'.repeat(20)
-    const keys = [...name, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+    const keys = [...name, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
 
     return answer(keys, { columns: 40 }).then(function (result) {
       assert.deepStrictEqual(result.options._, [name])
@@ -263,7 +313,7 @@ describe('wizard', function () {
   })
 
   it('should cancel when declining to create the app', function () {
-    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n']).then(function () {
+    return answer([ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, 'n']).then(function () {
       throw new Error('expected the wizard to be cancelled')
     }, function (err) {
       assert.ok(err instanceof CancelError)
@@ -385,6 +435,14 @@ describe('toCommand', function () {
 
   it('should include --keep-config', function () {
     assert.strictEqual(toCommand(options({ force: true, keepConfig: true })), 'npm create express-new@latest app -- --force --keep-config')
+  })
+
+  it('should include the new middleware and a logger other than morgan', function () {
+    assert.strictEqual(
+      toCommand(options({ rateLimit: true, session: true, csrf: true, logger: 'pino' })),
+      'npm create express-new@latest app -- --rate-limit --session --csrf --logger=pino'
+    )
+    assert.strictEqual(toCommand(options({ logger: 'morgan' })), 'npm create express-new@latest app')
   })
 
   it('should include --no-git without a .gitignore', function () {

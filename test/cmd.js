@@ -879,6 +879,370 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--rate-limit', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--rate-limit'], function (err, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 18)
+        done()
+      })
+    })
+
+    it('should use express-rate-limit after static files', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.strictEqual(pkg.dependencies['express-rate-limit'], VERSIONS['express-rate-limit'])
+      assert.ok(/^import \{ rateLimit \} from 'express-rate-limit';$/m.test(contents))
+      assert.ok(/^ {2}limit: Number\(process\.env\.RATE_LIMIT_MAX\) \|\| 100,$/m.test(contents))
+      assert.ok(contents.indexOf('app.use(rateLimit(') > contents.indexOf('app.use(express.static('))
+    })
+
+    it('should trust the proxies in TRUST_PROXY', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^ {2}app\.set\('trust proxy', /m.test(contents))
+    })
+
+    it('should document the settings in .env.example', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, '.env.example'), 'utf8')
+      assert.ok(/^# TRUST_PROXY=1$/m.test(contents))
+      assert.ok(/^# RATE_LIMIT_MAX=100$/m.test(contents))
+      assert.ok(/^# RATE_LIMIT_WINDOW_MS=900000$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass its tests', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'test', done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should send rate limit headers', function (done) {
+        request(this.app)
+          .get('/')
+          .expect('RateLimit-Policy', /q=100/)
+          .expect(200, done)
+      })
+
+      it('should not limit static files', function (done) {
+        request(this.app)
+          .get('/stylesheets/style.css')
+          .expect(function (res) {
+            assert.strictEqual(res.headers['ratelimit-policy'], undefined)
+          })
+          .expect(200, done)
+      })
+    })
+  })
+
+  describe('--session', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--session'], function (err, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 18)
+        done()
+      })
+    })
+
+    it('should use express-session', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.strictEqual(pkg.dependencies['express-session'], VERSIONS['express-session'])
+      assert.ok(/^import session from 'express-session';$/m.test(contents))
+      assert.ok(/^ {2}cookie: \{ sameSite: 'lax', secure: 'auto' \}$/m.test(contents))
+      assert.ok(/^ {2}app\.set\('trust proxy', /m.test(contents))
+      assert.ok(!/csrf/i.test(contents))
+    })
+
+    it('should document SESSION_SECRET in .env.example', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, '.env.example'), 'utf8')
+      assert.ok(/^# SESSION_SECRET=$/m.test(contents))
+      assert.ok(/^# TRUST_PROXY=1$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should require SESSION_SECRET in production', function (done) {
+      this.timeout(APP_START_STOP_TIMEOUT)
+
+      const env = utils.childEnvironment()
+      env.NODE_ENV = 'production'
+      delete env.SESSION_SECRET
+
+      exec('node app.js', { cwd: ctx.dir, env }, function (err, stdout, stderr) {
+        assert.ok(err, 'should exit with an error')
+        assert.ok(/Set SESSION_SECRET to use sessions in production/.test(stderr))
+        done()
+      })
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should not start a session until one is used', function (done) {
+        request(this.app)
+          .get('/')
+          .expect(function (res) {
+            assert.strictEqual(res.headers['set-cookie'], undefined)
+          })
+          .expect(200, done)
+      })
+    })
+
+    describe('with --api', function () {
+      const ctx0 = setupTestEnvironment('session with api')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx0.dir, ['--session', '--api'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--session' cannot be used with `--api'/.test(stderr))
+          done()
+        })
+      })
+    })
+  })
+
+  describe('--csrf', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--session', '--csrf'], function (err, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 18)
+        done()
+      })
+    })
+
+    it('should use csrf-sync after sessions', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.strictEqual(pkg.dependencies['csrf-sync'], VERSIONS['csrf-sync'])
+      assert.ok(/^import \{ csrfSync \} from 'csrf-sync';$/m.test(contents))
+      assert.ok(contents.indexOf('app.use(csrfSynchronisedProtection)') > contents.indexOf('app.use(session('))
+    })
+
+    it('should put the token in the page layout', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'views', 'layout.pug'), 'utf8')
+      assert.ok(/^ {4}title= title\n {4}meta\(name='csrf-token', content=csrfToken\)$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass its tests', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'test', done)
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should reject a form post without the token', function (done) {
+        request(this.app)
+          .post('/users')
+          .type('form')
+          .send({ name: 'test' })
+          .expect(403, /invalid csrf token/, done)
+      })
+
+      it('should accept a form post with the token from the page', function (done) {
+        const agent = request.agent(this.app)
+
+        agent.get('/').expect(200, function (err, res) {
+          if (err) return done(err)
+
+          const token = /<meta name="csrf-token" content="([^"]+)">/.exec(res.text)[1]
+
+          // past the CSRF check, to the 404 for a route the app does not have
+          agent.post('/users')
+            .type('form')
+            .send({ _csrf: token })
+            .expect(404, done)
+        })
+      })
+    })
+
+    ;['ejs', 'hbs', 'twig'].forEach(function (engine) {
+      describe('with --view=' + engine, function () {
+        const ctx0 = setupTestEnvironment('csrf with ' + engine)
+
+        it('should put the token in the page <head>', function (done) {
+          run(ctx0.dir, ['--session', '--csrf', '--view=' + engine], function (err) {
+            if (err) return done(err)
+            const file = path.resolve(ctx0.dir, 'views', engine === 'ejs' ? 'index.ejs' : 'layout.' + engine)
+            const contents = fs.readFileSync(file, 'utf8')
+            assert.ok(/<title>.*<\/title>\n {4}<meta name="csrf-token" content="[^"]+">\n/.test(contents))
+            done()
+          })
+        })
+      })
+    })
+
+    describe('without --session', function () {
+      const ctx0 = setupTestEnvironment('csrf without session')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx0.dir, ['--csrf'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--csrf' requires `--session'/.test(stderr))
+          done()
+        })
+      })
+    })
+
+    describe('with --no-view', function () {
+      const ctx0 = setupTestEnvironment('csrf with no view')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx0.dir, ['--session', '--csrf', '--no-view'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--csrf' needs a view engine/.test(stderr))
+          done()
+        })
+      })
+    })
+  })
+
+  describe('--logger', function () {
+    describe('pino', function () {
+      const ctx = setupTestEnvironment('logger pino')
+
+      it('should create basic app', function (done) {
+        run(ctx.dir, ['--api', '--logger=pino'], function (err, stdout) {
+          if (err) return done(err)
+          assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 11)
+          done()
+        })
+      })
+
+      it('should use pino-http instead of morgan', function () {
+        const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+        const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+        assert.strictEqual(pkg.dependencies['pino-http'], VERSIONS['pino-http'])
+        assert.strictEqual(pkg.dependencies.morgan, undefined)
+        assert.ok(/^import \{ pinoHttp \} from 'pino-http';$/m.test(contents))
+        assert.ok(!/morgan/.test(contents))
+      })
+
+      it('should pretty print logs in development', function () {
+        const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+        assert.ok(/ \| pino-pretty$/.test(pkg.scripts.dev))
+        assert.strictEqual(pkg.devDependencies['pino-pretty'], VERSIONS['pino-pretty'])
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx.dir, done)
+      })
+
+      it('should pass its tests', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx.dir, 'test', done)
+      })
+
+      describe('npm start', function () {
+        before('start app', function () {
+          this.app = new AppRunner(ctx.dir)
+        })
+
+        after('stop app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.stop(done)
+        })
+
+        it('should start app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.start(done)
+        })
+
+        it('should respond to GET /', function (done) {
+          request(this.app)
+            .get('/')
+            .expect(200, { message: 'Welcome to Express' }, done)
+        })
+      })
+    })
+
+    describe('(unsupported logger)', function () {
+      const ctx = setupTestEnvironment('logger unsupported')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx.dir, ['--logger=winston'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: unsupported logger `winston'/.test(stderr))
+          done()
+        })
+      })
+    })
+
+    describe('(no logger)', function () {
+      const ctx = setupTestEnvironment('logger missing')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx.dir, ['--logger'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--logger <name>' argument missing/.test(stderr))
+          done()
+        })
+      })
+    })
+  })
+
   describe('--docker', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -1199,7 +1563,7 @@ describe('express(1)', function () {
       const ctx0 = setupTestEnvironment('ts all middleware')
 
       it('should create basic app', function (done) {
-        run(ctx0.dir, ['--ts', '--helmet', '--compression', '--cookies', '--view', 'ejs'], function (err, stdout) {
+        run(ctx0.dir, ['--ts', '--helmet', '--compression', '--cookies', '--view', 'ejs', '--rate-limit', '--session', '--csrf', '--logger=pino'], function (err, stdout) {
           if (err) return done(err)
           ctx0.files = utils.parseCreatedFiles(stdout, ctx0.dir)
           done()
@@ -1211,6 +1575,8 @@ describe('express(1)', function () {
         const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
         assert.strictEqual(typeof pkg.devDependencies['@types/compression'], 'string')
         assert.strictEqual(typeof pkg.devDependencies['@types/cookie-parser'], 'string')
+        assert.strictEqual(typeof pkg.devDependencies['@types/express-session'], 'string')
+        assert.strictEqual(pkg.devDependencies['@types/morgan'], undefined)
       })
 
       it('should have installable dependencies', function (done) {

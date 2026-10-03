@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- `--rate-limit` adds express-rate-limit, limiting each client to 100 requests every 15 minutes
+  (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`), after static files and never on `/health`
+- `--session` adds express-session for web apps, with `SameSite=Lax` cookies that are `Secure` over
+  HTTPS, and refuses to start in production without `SESSION_SECRET`
+- `--csrf` adds csrf-sync CSRF protection to apps with `--session` and a view engine, with the token
+  in views as `csrfToken` and in a `csrf-token` meta tag in the page layout
+- `--logger=pino` logs requests as JSON with pino-http instead of morgan, pretty printed by
+  `npm run dev`
+- `TRUST_PROXY` sets the proxies the app trusts, for apps with `--rate-limit` or `--session`
+- The wizard offers express-rate-limit and express-session (for web apps) with the other middleware,
+  asks about CSRF protection when sessions are chosen, and asks which request logger to use
+
 - `--keep-config` keeps existing config files (`.env.example`, `Dockerfile`, `.dockerignore`,
   `tsconfig.json`, `eslint.config.*`) when generating into a non-empty directory
 - The wizard lists the existing files an app would overwrite and asks whether to overwrite them,
