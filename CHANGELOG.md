@@ -44,6 +44,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- Error pages show the status code in every environment, not only in development, and have a title
+- `error.ejs` is a full HTML page with the stylesheet, like the other engines' error pages
+- twig layouts escape the page title, which error pages set to the error message
 - Web apps with views no longer show server errors' messages outside development, only
   `Internal Server Error`, as JSON APIs already did
 - `--no-view` apps have their own error handler, responding with plain text and logging only server

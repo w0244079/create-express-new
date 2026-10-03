@@ -100,6 +100,8 @@ app.use((err, req, res, next) => {
   // set locals, only exposing client error messages, or every error in
   // development, and only providing the error in development
   res.locals.message = err.expose || development ? err.message : 'Internal Server Error';
+  res.locals.title = res.locals.message;
+  res.locals.status = status;
   res.locals.error = development ? err : {};
 
   // render the error page

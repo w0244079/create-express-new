@@ -52,6 +52,12 @@ describe('express(1)', function () {
       assert.ok(/^ {2}res\.locals\.message = err\.expose \|\| development \? err\.message : 'Internal Server Error';$/m.test(contents))
     })
 
+    it('should give the error page a title and status in every environment', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      assert.ok(/^ {2}res\.locals\.title = res\.locals\.message;$/m.test(contents))
+      assert.ok(/^ {2}res\.locals\.status = status;$/m.test(contents))
+    })
+
     it('should not start the wizard without a terminal', function () {
       assert.ok(!/Project directory/.test(ctx.stdout))
     })
@@ -151,7 +157,7 @@ describe('express(1)', function () {
       it('should generate a 404', function (done) {
         request(this.app)
           .get('/does_not_exist')
-          .expect(404, /<h1>Not Found<\/h1>/, done)
+          .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
       })
     })
 
@@ -623,7 +629,7 @@ describe('express(1)', function () {
       it('should generate a 404', function (done) {
         request(this.app)
           .get('/does_not_exist')
-          .expect(404, /<h1>Not Found<\/h1>/, done)
+          .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
       })
     })
   })
@@ -1156,6 +1162,13 @@ describe('express(1)', function () {
             assert.ok(/<title>.*<\/title>\n {4}<meta name="csrf-token" content="[^"]+">\n/.test(contents))
             const form = fs.readFileSync(path.resolve(ctx0.dir, 'views', 'new-user.' + engine), 'utf8')
             assert.ok(/\n +<input type="hidden" name="_csrf" value="[^"]+">\n/.test(form))
+
+            if (engine === 'ejs') {
+              // the error page renders before the token is set for a CSRF failure,
+              // where an undefined variable would throw
+              const error = fs.readFileSync(path.resolve(ctx0.dir, 'views', 'error.ejs'), 'utf8')
+              assert.ok(/<meta name="csrf-token" content="<%= locals\.csrfToken %>">/.test(error))
+            }
             done()
           })
         })
@@ -1846,7 +1859,7 @@ describe('express(1)', function () {
       it('should generate a 404', function (done) {
         request(this.app)
           .get('/does_not_exist')
-          .expect(404, /<h1>Not Found<\/h1>/, done)
+          .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
       })
     })
 
@@ -2033,7 +2046,7 @@ describe('express(1)', function () {
         it('should generate a 404', function (done) {
           request(this.app)
             .get('/does_not_exist')
-            .expect(404, /<h1>Not Found<\/h1>/, done)
+            .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
         })
       })
     })
@@ -2098,7 +2111,7 @@ describe('express(1)', function () {
         it('should generate a 404', function (done) {
           request(this.app)
             .get('/does_not_exist')
-            .expect(404, /<h1>Not Found<\/h1>/, done)
+            .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
         })
       })
     })
@@ -2163,7 +2176,7 @@ describe('express(1)', function () {
         it('should generate a 404', function (done) {
           request(this.app)
             .get('/does_not_exist')
-            .expect(404, /<h1>Not Found<\/h1>/, done)
+            .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
         })
       })
     })
@@ -2228,7 +2241,7 @@ describe('express(1)', function () {
         it('should generate a 404', function (done) {
           request(this.app)
             .get('/does_not_exist')
-            .expect(404, /<h1>Not Found<\/h1>/, done)
+            .expect(404, /<title>Not Found<\/title>[\s\S]*<h1>Not Found<\/h1>\s*<h2>404<\/h2>/, done)
         })
       })
     })
