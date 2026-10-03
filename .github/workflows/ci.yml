@@ -34,11 +34,17 @@ jobs:
     - name: Install Node.js dependencies
       run: npm install
 
+    # generated apps require pnpm by default, and the tests install them
+    - name: Install pnpm
+      shell: bash
+      run: npm install -g "pnpm@$(node -p "require('./templates/versions.json').versions.pnpm.slice(1)")"
+
     - name: List environment
       shell: bash
       run: |
         echo "node@$(node -v)"
         echo "npm@$(npm -v)"
+        echo "pnpm@$(pnpm -v)"
         npm -s ls ||:
 
     - name: Run tests
@@ -57,10 +63,16 @@ jobs:
         include:
         - name: default
           args: ''
+          pm: pnpm
         - name: TypeScript API
           args: --api --ts
+          pm: pnpm
         - name: CommonJS
           args: --cjs
+          pm: pnpm
+        - name: npm
+          args: --pm=npm
+          pm: npm
 
     name: Docker (${{ matrix.name }})
 
@@ -75,10 +87,16 @@ jobs:
     - name: Install Node.js dependencies
       run: npm install
 
+    # the versions the generated Dockerfile installs
+    - name: Install ${{ matrix.pm }}
+      run: npm install -g "${{ matrix.pm }}@$(node -p "require('./templates/versions.json').versions['${{ matrix.pm }}'].slice(1)")"
+
+    # installing creates the lockfile that the image installs from
     - name: Generate app
       run: |
         node bin/express-cli.js --docker --no-git ${{ matrix.args }} "$RUNNER_TEMP/app"
-        npm install --prefix "$RUNNER_TEMP/app" --no-audit --no-fund
+        cd "$RUNNER_TEMP/app"
+        ${{ matrix.pm }} install
 
     - name: Build image
       run: docker build -t app "$RUNNER_TEMP/app"

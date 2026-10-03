@@ -21,7 +21,7 @@ export default class AppRunner {
 
     env.PORT = String(this.port)
 
-    this.child = exec('npm start', {
+    this.child = exec(utils.packageManager(this.dir) + ' start', {
       cwd: this.dir,
       env
     })

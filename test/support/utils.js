@@ -17,6 +17,11 @@ export function childEnvironment () {
   return env
 }
 
+// the package manager an app requires in its package.json
+export function packageManager (dir) {
+  return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).devEngines.packageManager.name
+}
+
 export function parseCreatedFiles (output, dir) {
   const files = []
   const lines = output.split(/[\r\n]+/)

@@ -1,8 +1,9 @@
 name: versions
 
 # Check the dependency versions used by generated apps (templates/versions.json),
-# which Dependabot does not cover. Fails when a version is behind or a new major
-# needs review; fix locally with `npm run versions -- --update`.
+# which Dependabot does not cover. Fails when a version is behind, is too new for
+# generated apps to install, or a new major needs review; fix locally with
+# `npm run versions -- --update`.
 
 on:
   schedule:

@@ -44,6 +44,10 @@ jobs:
     - name: Install Node.js dependencies
       run: npm install
 
+    # generated apps require pnpm by default, and the tests install them
+    - name: Install pnpm
+      run: npm install -g "pnpm@$(node -p "require('./templates/versions.json').versions.pnpm.slice(1)")"
+
     # runs lint and the tests first (prepublishOnly)
     - name: Publish
       run: npm publish

@@ -1,0 +1,8 @@
+# npm settings that protect installs from compromised packages.
+# npm 12 and newer, which this app requires in package.json, also refuses
+# dependencies from git and skips the install scripts of dependencies unless
+# they are approved with `npm approve-scripts`.
+
+# Wait 3 days before installing a newly published version, so a compromised
+# release can be found and removed from the registry first.
+min-release-age=3
