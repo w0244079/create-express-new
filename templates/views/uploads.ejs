@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <% if (locals.uploaded) { %><p>Uploaded <%= uploaded %></p><% } %>
+    <form method="post" action="/uploads" enctype="multipart/form-data">
+      @csrf
+      <input type="file" name="file">
+      <button type="submit">Upload</button>
+    </form>
+  </body>
+</html>

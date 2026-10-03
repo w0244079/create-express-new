@@ -8,6 +8,23 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- `--rate-limit` adds express-rate-limit, limiting each client to 100 requests every 15 minutes
+  (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`), after static files and never on `/health`
+- `--session` adds express-session for web apps, with `SameSite=Lax` cookies that are `Secure` over
+  HTTPS, and refuses to start in production without `SESSION_SECRET`
+- `--csrf` adds csrf-sync CSRF protection to apps with `--session` and a view engine, with the token
+  in views as `csrfToken` and in a `csrf-token` meta tag in the page layout
+- `--uploads` adds multer and a `POST /uploads` route for web apps and JSON APIs, saving one file of
+  up to 5 MB (`UPLOAD_MAX_SIZE`) of an allowed type in an ignored `uploads/` folder, with an upload
+  form in apps with views; with `--csrf` it checks the token before saving the file, and with
+  `--docker` the image has a writable `uploads` folder
+- With `--csrf`, an example form at `/users/new` and CSRF setup in its own `csrf.js`
+- `--logger=pino` logs requests as JSON with pino-http instead of morgan, pretty printed by
+  `npm run dev`
+- `TRUST_PROXY` sets the proxies the app trusts, for apps with `--rate-limit` or `--session`
+- The wizard offers express-rate-limit and express-session (for web apps) with the other middleware,
+  asks about CSRF protection when sessions are chosen, and asks which request logger to use
+
 - `--keep-config` keeps existing config files (`.env.example`, `Dockerfile`, `.dockerignore`,
   `tsconfig.json`, `eslint.config.*`) when generating into a non-empty directory
 - The wizard lists the existing files an app would overwrite and asks whether to overwrite them,
@@ -16,6 +33,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Every app's error handler logs server errors (5xx) with `console.error`, which no error handler
+  did before, so a 500 only showed as a status in the request log
 - An existing `.gitignore` gets the missing lines added instead of being replaced
 - Existing files with the same contents are left alone, logged as `identical`
 - The command line lists the files it would overwrite before asking to continue in a non-empty
@@ -25,6 +44,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- Error pages show the status code in every environment, not only in development, and have a title
+- `error.ejs` is a full HTML page with the stylesheet, like the other engines' error pages
+- twig layouts escape the page title, which error pages set to the error message
+- Web apps with views no longer show server errors' messages outside development, only
+  `Internal Server Error`, as JSON APIs already did
+- `--no-view` apps have their own error handler, responding with plain text and logging only server
+  errors, instead of Express's default handler logging the stack of every error, including client
+  errors such as invalid JSON
+- twig error pages escape the error message and stack, as twig.js does not escape output by default
 - An overwritten or identical `bin/www` is made executable, as writing an existing file kept its mode
 - A file where the app needs a folder (or a folder where it needs a file) is reported before
   anything is written, instead of failing with a partly generated app

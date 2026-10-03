@@ -1,0 +1,7 @@
+<h1>{{title}}</h1>
+{{#if uploaded}}<p>Uploaded {{uploaded}}</p>{{/if}}
+<form method="post" action="/uploads" enctype="multipart/form-data">
+  @csrf
+  <input type="file" name="file">
+  <button type="submit">Upload</button>
+</form>

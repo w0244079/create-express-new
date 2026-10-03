@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 import util from 'node:util'
-import { VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp } from '../lib/app.js'
+import { LOGGERS, VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp } from '../lib/app.js'
 import { CancelError } from '../lib/prompts.js'
 import { wizard } from '../lib/wizard.js'
 
@@ -19,6 +19,7 @@ const OPTIONS = {
   compression: { type: 'boolean' },
   cookies: { type: 'boolean' },
   cors: { type: 'boolean' },
+  csrf: { type: 'boolean' },
   docker: { type: 'boolean' },
   force: { type: 'boolean', short: 'f' },
   git: { type: 'boolean' },
@@ -26,9 +27,13 @@ const OPTIONS = {
   help: { type: 'boolean', short: 'h' },
   'keep-config': { type: 'boolean' },
   lint: { type: 'boolean' },
+  logger: { type: 'string' },
   'no-git': { type: 'boolean' },
   'no-view': { type: 'boolean' },
+  'rate-limit': { type: 'boolean' },
+  session: { type: 'boolean' },
   ts: { type: 'boolean' },
+  uploads: { type: 'boolean' },
   version: { type: 'boolean' },
   view: { type: 'string', short: 'v' }
 }
@@ -262,6 +267,10 @@ function main (options, done) {
     usage()
     error('option `-v, --view <engine>\' argument missing')
     done(1)
+  } else if (options.logger === '') {
+    usage()
+    error('option `--logger <name>\' argument missing')
+    done(1)
   } else {
     // Path
     const destinationPath = options._[0] || '.'
@@ -301,6 +310,32 @@ function main (options, done) {
     if (options.view && !VIEW_ENGINES[options.view]) {
       usage()
       error('unsupported view engine `' + options.view + "'")
+      return done(1)
+    }
+
+    // Unsupported loggers
+    if (!LOGGERS.includes(options.logger)) {
+      usage()
+      error('unsupported logger `' + options.logger + "'")
+      return done(1)
+    }
+
+    // Sessions are for web apps, and CSRF protection needs them and views
+    if (options.session && options.api) {
+      usage()
+      error('option `--session\' cannot be used with `--api\'')
+      return done(1)
+    }
+
+    if (options.csrf && !options.session) {
+      usage()
+      error('option `--csrf\' requires `--session\'')
+      return done(1)
+    }
+
+    if (options.csrf && !options.view) {
+      usage()
+      error('option `--csrf\' needs a view engine, so cannot be used with `--no-view\'')
       return done(1)
     }
 
@@ -391,6 +426,8 @@ function parseOptions (argv) {
   // a .gitignore is added unless --no-git is given
   options.git = !options['no-git']
   options.keepConfig = Boolean(options['keep-config'])
+  options.rateLimit = Boolean(options['rate-limit'])
+  options.logger ??= 'morgan'
 
   return options
 }
@@ -418,6 +455,11 @@ function usage () {
   console.log('        --compression    add compression middleware for gzip/brotli responses')
   console.log('        --cookies        add cookie-parser middleware')
   console.log('        --cors           add cors middleware for cross-origin requests')
+  console.log('        --rate-limit     add express-rate-limit to limit requests per client')
+  console.log('        --session        add express-session for sessions (not with --api)')
+  console.log('        --csrf           add CSRF protection for forms (needs --session)')
+  console.log('        --uploads        add multer and an upload route at /uploads')
+  console.log('        --logger <name>  request logger (morgan|pino) (defaults to morgan)')
   console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and an npm run lint script')
   console.log('        --no-git         skip the .gitignore')

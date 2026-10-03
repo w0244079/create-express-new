@@ -19,6 +19,12 @@ RUN npm ci --omit=dev
 # copy the app owned by the unprivileged node user, which runs it, so it can
 # read the files whatever their permissions on the build machine
 COPY --chown=node:node . .
+<% if (uploads) { -%>
+
+# a folder for uploaded files that the node user can write to; files saved
+# in a container are lost when it is replaced, so mount a volume here
+RUN mkdir -p uploads && chown node:node uploads
+<% } -%>
 USER node
 
 EXPOSE 3000

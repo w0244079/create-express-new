@@ -1,0 +1,9 @@
+<h1>{{title}}</h1>
+{{#if added}}<p>Added {{added}}</p>{{/if}}
+{{#if error}}<p class="error">{{error}}</p>{{/if}}
+<form method="post" action="/users/new">
+  @csrf
+  <label for="name">Name</label>
+  <input id="name" type="text" name="name" value="{{name}}">
+  <button type="submit">Add user</button>
+</form>

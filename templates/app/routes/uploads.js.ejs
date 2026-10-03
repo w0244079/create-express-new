@@ -1,0 +1,94 @@
+<% if (esm) { -%>
+import express from 'express';
+<% if (ts) { -%>
+import type { NextFunction, Request, Response } from 'express';
+<% } -%>
+import createError from 'http-errors';
+import multer from 'multer';
+import path from 'node:path';
+<% if (csrf) { -%>
+import csrf from '../csrf.<%- ext %>';
+<% } -%>
+<% } else { -%>
+const express = require('express');
+const createError = require('http-errors');
+const multer = require('multer');
+const path = require('node:path');
+<% if (csrf) { -%>
+const csrf = require('../csrf.js');
+<% } -%>
+<% } -%>
+
+const router = express.Router();
+
+// file types to accept, as sent by the client, so check a file's contents
+// too before trusting it
+const TYPES = ['application/pdf', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'];
+
+// files are saved in uploads/ under random names, never the name the client
+// sends, and are not served as static files, where they could run scripts
+const upload = multer({
+  dest: path.join(<%- dirname %>, '..', 'uploads'),
+  limits: {
+    // bytes per file, 5 MB unless set
+    fileSize: Number(process.env.UPLOAD_MAX_SIZE) || 5 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+<% if (csrf) { -%>
+    // check the CSRF token, from the _csrf field before the file, so
+    // nothing is saved without it
+    if (!csrf.isRequestValid(req)) return cb(csrf.invalidCsrfTokenError);
+<% } -%>
+    if (!TYPES.includes(file.mimetype)) return cb(createError(415, 'Unsupported file type'));
+    cb(null, true);
+  }
+});
+
+<% if (view) { -%>
+/* GET the upload form. */
+router.get('/', (req, res) => {
+  res.render('uploads', { title: 'Upload a file', uploaded: req.query.uploaded });
+});
+
+<% } -%>
+/* POST a file in the `file` field. */
+router.post('/', upload.single('file'), (req, res, next) => {
+<% if (csrf) { -%>
+  // without a file, the CSRF token is not checked yet
+  if (!csrf.isRequestValid(req)) return next(csrf.invalidCsrfTokenError);
+<% } -%>
+  if (!req.file) return next(createError(400, 'Choose a file to upload'));
+
+<% if (view) { -%>
+  // redirect, so refreshing the page does not upload again
+  res.redirect(303, `/uploads?uploaded=${encodeURIComponent(req.file.originalname)}`);
+<% } else { -%>
+  res.status(201).json({
+    // the file's name in uploads/
+    id: req.file.filename,
+    name: req.file.originalname,
+    type: req.file.mimetype,
+    size: req.file.size
+  });
+<% } -%>
+});
+
+// multer's errors, such as a file over the size limit, are client errors
+<% if (ts) { -%>
+router.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
+router.use((err, req, res, next) => {
+<% } -%>
+  if (err instanceof multer.MulterError) {
+    next(createError(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400, err.message));
+  } else {
+    next(err);
+  }
+});
+
+<% if (esm) { -%>
+export default router;
+<% } else { -%>
+module.exports = router;
+<% } -%>

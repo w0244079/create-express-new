@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <% if (locals.added) { %><p>Added <%= added %></p><% } %>
+    <% if (locals.error) { %><p class="error"><%= error %></p><% } %>
+    <form method="post" action="/users/new">
+      @csrf
+      <label for="name">Name</label>
+      <input id="name" type="text" name="name" value="<%= locals.name %>">
+      <button type="submit">Add user</button>
+    </form>
+  </body>
+</html>

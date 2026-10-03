@@ -25,7 +25,8 @@ $ npm create express-new@latest
 
 The wizard asks for the project directory (enter `.` for the current directory), whether you are
 building a web app or a JSON API, the view engine, the language (JavaScript, TypeScript or CommonJS),
-optional middleware, extras (a Dockerfile and ESLint) and a `.gitignore`.
+optional middleware (and CSRF protection, with sessions), the request logger, extras (a Dockerfile and
+ESLint) and a `.gitignore`.
 Press Esc (or ←) to go back to the previous question; your earlier answers are kept. It then shows the
 equivalent command, so you can repeat the setup or use it in scripts, and offers to run `npm install`.
 
@@ -86,6 +87,12 @@ Every app has a `GET /health` endpoint that responds with `{ "status": "ok" }`, 
 container health checks and uptime monitors. It is defined before the middleware, so it stays fast and
 out of the request logs.
 
+Every app logs server errors (5xx) with `console.error`, but not client errors (4xx) such as a 404.
+Web apps with a view engine render errors with the `error` view, and `--no-view` apps respond with
+plain text. Either way, client errors show their message, server errors only say
+`Internal Server Error` outside development, so internal details are never sent, and development
+shows every error's message and stack.
+
 ### JSON APIs
 
 `--api` generates a JSON API instead of a web app: no views, static files or form parsing, and
@@ -141,6 +148,75 @@ files with `--api`). Add more with:
 - `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins. Any origin is
   allowed by default; set `CORS_ORIGIN` (see `.env.example`) to a comma-separated list of origins to
   allow only your front ends.
+- `--rate-limit`: [express-rate-limit](https://express-rate-limit.mintlify.app/), limiting each client
+  to 100 requests every 15 minutes, with `RateLimit` headers and `429 Too Many Requests` responses
+  past the limit. Change the limit with `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`. It comes after the
+  static files, so only app routes count, and `/health` is never limited.
+- `--session` (web apps only): [express-session](https://github.com/expressjs/session), for
+  `req.session`. Set `SESSION_SECRET` to a long random string; the app refuses to start in production
+  without one. The session cookie is `SameSite=Lax`, and `Secure` over HTTPS. Sessions are kept in
+  memory, which loses them on restart and does not suit more than one process, so add a
+  [store](https://github.com/expressjs/session#compatible-session-stores) such as `connect-redis`
+  before going to production.
+- `--csrf` (with `--session` and a view engine): [csrf-sync](https://github.com/Psifi-Solutions/csrf-sync)
+  CSRF protection, set up in `csrf.js`. Requests other than `GET`, `HEAD` and `OPTIONS` need the
+  session's token, or get `403 Forbidden`. Views get it as `csrfToken`, and the page layout has it in a
+  `<meta name="csrf-token">` tag. An example form at `/users/new` shows it in use, with a
+  `POST /users/new` that checks the name and redirects back. Send the token in a hidden `_csrf` form
+  field:
+
+  ```pug
+  form(method='post', action='/users/new')
+    input(type='hidden', name='_csrf', value=csrfToken)
+  ```
+
+  or, from JavaScript, in an `x-csrf-token` header:
+
+  ```js
+  const token = document.querySelector('meta[name="csrf-token"]').content;
+  await fetch('/users/new', { method: 'POST', headers: { 'x-csrf-token': token }, body: new URLSearchParams({ name: 'Ada' }) });
+  ```
+
+- `--uploads`: [multer](https://github.com/expressjs/multer) and a `POST /uploads` route that takes one
+  file in a `file` field, with a form at `GET /uploads` in apps with views (JSON APIs and `--no-view`
+  apps respond with the saved file's details as JSON instead). See [File uploads](#file-uploads).
+
+`--rate-limit` and `--session` also make the app trust the `X-Forwarded-*` headers of the proxies set
+in `TRUST_PROXY`, the number of proxies (such as `1` behind one load balancer) or their addresses.
+Behind a proxy, set it so the rate limit counts each client rather than the proxy, and session
+cookies are `Secure` when the proxy terminates HTTPS. Leave it unset otherwise, as clients could
+then fake their address.
+
+### File uploads
+
+`--uploads` adds multer to the `/uploads` route only, rather than to every route, so no other route
+accepts files. Its `routes/uploads.js`:
+
+- saves files in `uploads/` under random names, never the name the client sent, and does not serve
+  them as static files, where an uploaded HTML or SVG file could run scripts on your site. Both
+  `.gitignore` and `.dockerignore` ignore the folder.
+- accepts one file of up to 5 MB (set `UPLOAD_MAX_SIZE` in bytes to change it), responding with
+  `413` for larger files and `400` for other upload errors.
+- accepts only PDF, GIF, JPEG, PNG, WebP and plain text files, responding with `415` for others. Edit
+  `TYPES` to change the list. The type is the one the client sends, so check a file's contents too
+  before trusting it.
+
+With `--csrf`, the CSRF check for the whole app skips `/uploads`, as multer reads the form, including
+its `_csrf` field, only inside the route. The route checks the token itself as soon as the file
+arrives, before saving anything, so the `_csrf` field must come before the file in the form, as it
+does in the generated one. JavaScript can send the token in an `x-csrf-token` header instead.
+
+With `--docker`, the image has an `uploads` folder the app can write to. Files saved in a container are
+lost when it is replaced, so mount a volume at `/app/uploads`, or store files somewhere else, such as
+object storage, in production.
+
+### Request logging
+
+Requests are logged with [morgan](https://github.com/expressjs/morgan) by default, one readable line
+per request. `--logger=pino` uses [pino-http](https://github.com/pinojs/pino-http) instead, which logs
+JSON for log collectors and adds `req.log` for your own logs. `npm run dev` pipes them through
+[pino-pretty](https://github.com/pinojs/pino-pretty) to keep them readable. Either way, requests are
+not logged while the tests run.
 
 ### Docker
 
@@ -157,7 +233,8 @@ The image is based on `node:22-slim`, the latest release of the minimum supporte
 installs only production dependencies. It runs the app as the
 unprivileged `node` user with `NODE_ENV=production`, checks `/health` with a `HEALTHCHECK`, and runs
 `node` directly so it receives `SIGTERM` and shuts down gracefully. `.env` files are not copied into the
-image; set environment variables with your container platform instead.
+image; set environment variables with your container platform instead. With `--session`, the app needs
+`SESSION_SECRET` to start, such as `docker run -e SESSION_SECRET=... -p 3000:3000 my-app`.
 
 ### Linting
 
@@ -176,6 +253,11 @@ support TypeScript 7 yet, these apps use TypeScript 6.
         --compression    add compression middleware for gzip/brotli responses
         --cookies        add cookie-parser middleware
         --cors           add cors middleware for cross-origin requests
+        --rate-limit     add express-rate-limit to limit requests per client
+        --session        add express-session for sessions (not with --api)
+        --csrf           add CSRF protection for forms (needs --session)
+        --uploads        add multer and an upload route at /uploads
+        --logger <name>  request logger (morgan|pino) (defaults to morgan)
         --docker         add a Dockerfile for a production image
         --lint           add ESLint and an npm run lint script
         --no-git         skip the .gitignore
@@ -197,7 +279,9 @@ This fork started from `express-generator` 4.16.1.
 - An interactive wizard when run without arguments in a terminal, which shows the equivalent command
 - A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects
 - Request logs are skipped while the generated tests run, keeping `npm test` output readable
-- `--helmet`, `--compression`, `--cookies` and `--cors` options for opt-in middleware
+- `--helmet`, `--compression`, `--cookies`, `--cors`, `--rate-limit`, `--session` and `--csrf` options
+  for opt-in middleware, `--uploads` for file uploads with multer, and `--logger=pino` for JSON request
+  logs
 - `--docker` for a production Dockerfile with a `HEALTHCHECK`
 - A `GET /health` endpoint for load balancers, container health checks and uptime monitors
 - `--lint` for ESLint, including typescript-eslint for TypeScript apps

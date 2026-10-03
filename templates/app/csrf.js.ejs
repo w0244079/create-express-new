@@ -1,0 +1,21 @@
+<% if (esm) { -%>
+import { csrfSync } from 'csrf-sync';
+<% } else { -%>
+const { csrfSync } = require('csrf-sync');
+<% } -%>
+
+// CSRF protection for requests that change data, which must send the token
+// in a _csrf form field or an x-csrf-token header (GET is not checked)
+const csrf = csrfSync({
+  getTokenFromRequest: (req) => req.body?._csrf ?? req.get('x-csrf-token')<%- uploads ? ',' : '' %>
+<% if (uploads) { -%>
+  // uploads check the token themselves, as multer reads their form
+  skipCsrfProtection: (req) => req.path === '/uploads'
+<% } -%>
+});
+
+<% if (esm) { -%>
+export default csrf;
+<% } else { -%>
+module.exports = csrf;
+<% } -%>

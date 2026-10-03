@@ -13,7 +13,7 @@ import type { HttpError } from 'http-errors';
 import path from 'node:path';
 <% } -%>
 <% Object.keys(modules).sort().forEach(function (variable) { -%>
-import <%- variable %> from '<%- modules[variable] %>';
+import <%- named.has(variable) ? '{ ' + variable + ' }' : variable %> from '<%- modules[variable] %>';
 <% }); -%>
 
 <% Object.keys(localModules).sort().forEach(function (variable) { -%>
@@ -28,7 +28,7 @@ const express = require('express');
 const path = require('node:path');
 <% } -%>
 <% Object.keys(modules).sort().forEach(function (variable) { -%>
-const <%- variable %> = require('<%- modules[variable] %>');
+const <%- named.has(variable) ? '{ ' + variable + ' }' : variable %> = require('<%- modules[variable] %>');
 <% }); -%>
 
 <% Object.keys(localModules).sort().forEach(function (variable) { -%>
@@ -38,6 +38,23 @@ const <%- variable %> = require('<%- localModules[variable] %>');
 
 const app = express();
 
+<% if (trustProxy) { -%>
+// behind a load balancer or other proxy, trust the X-Forwarded-* headers it
+// sets, so req.ip and req.secure describe the client: TRUST_PROXY is the
+// number of proxies, or their addresses
+if (process.env.TRUST_PROXY) {
+  const hops = Number(process.env.TRUST_PROXY);
+  app.set('trust proxy', Number.isInteger(hops) ? hops : process.env.TRUST_PROXY);
+}
+
+<% } -%>
+<% if (session) { -%>
+// session cookies are signed with SESSION_SECRET, which production requires
+if (!process.env.SESSION_SECRET && app.get('env') === 'production') {
+  throw new Error('Set SESSION_SECRET to use sessions in production');
+}
+
+<% } -%>
 // health check for load balancers and containers, defined before the
 // middleware so it stays fast and out of the request logs
 app.get('/health', (req, res) => {
@@ -73,12 +90,22 @@ app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
 <% } else { -%>
 app.use((err, req, res, next) => {
 <% } -%>
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+  const status = err.status || 500;
+
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
+
+  const development = req.app.get('env') === 'development';
+
+  // set locals, only exposing client error messages, or every error in
+  // development, and only providing the error in development
+  res.locals.message = err.expose || development ? err.message : 'Internal Server Error';
+  res.locals.title = res.locals.message;
+  res.locals.status = status;
+  res.locals.error = development ? err : {};
 
   // render the error page
-  res.status(err.status || 500);
+  res.status(status);
   res.render('error');
 });
 
@@ -97,11 +124,35 @@ app.use((err, req, res, next) => {
   const status = err.status || 500;
   const development = req.app.get('env') === 'development';
 
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
+
   // only expose client error messages, or every error in development
   res.status(status).json({
     error: err.expose || development ? err.message : 'Internal Server Error',
     ...(development && { stack: err.stack })
   });
+});
+
+<% } else { -%>
+// error handler, responding with plain text
+<% if (ts) { -%>
+app.use((err: Error & { status?: number; expose?: boolean }, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
+app.use((err, req, res, next) => {
+<% } -%>
+  const status = err.status || 500;
+  const development = req.app.get('env') === 'development';
+
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
+
+  // only expose client error messages, or every error and its stack in development
+  let message = 'Internal Server Error';
+  if (development) message = err.stack ?? err.message;
+  else if (err.expose) message = err.message;
+
+  res.status(status).type('text').send(message);
 });
 
 <% } -%>
