@@ -1,0 +1,13 @@
+{% extends 'layout.twig' %}
+
+{% block body %}
+  <h1>{{ title|e }}</h1>
+  {% if added %}<p>Added {{ added|e }}</p>{% endif %}
+  {% if error %}<p class="error">{{ error|e }}</p>{% endif %}
+  <form method="post" action="/users/new">
+    @csrf
+    <label for="name">Name</label>
+    <input id="name" type="text" name="name" value="{{ name|e }}">
+    <button type="submit">Add user</button>
+  </form>
+{% endblock %}

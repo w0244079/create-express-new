@@ -44,6 +44,7 @@ describe('wizard', function () {
         rateLimit: false,
         session: false,
         ts: false,
+        uploads: false,
         view: 'pug'
       })
       assert.ok(result.output.includes('npm create express-new@latest my-app'))
@@ -119,6 +120,19 @@ describe('wizard', function () {
       assert.ok(result.output.includes('express-rate-limit'))
       assert.ok(!result.output.includes('express-session'))
       assert.ok(!result.output.includes('CSRF'))
+    })
+  })
+
+  it('should offer multer for a JSON API', function () {
+    const keys = [
+      ENTER, DOWN, ENTER, ENTER, // directory, JSON API, JavaScript
+      DOWN, DOWN, DOWN, DOWN, DOWN, ' ', ENTER, // multer
+      ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.uploads, true)
+      assert.ok(result.output.includes('npm create express-new@latest my-app -- --api --uploads'))
     })
   })
 

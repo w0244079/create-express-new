@@ -33,6 +33,7 @@ const OPTIONS = {
   'rate-limit': { type: 'boolean' },
   session: { type: 'boolean' },
   ts: { type: 'boolean' },
+  uploads: { type: 'boolean' },
   version: { type: 'boolean' },
   view: { type: 'string', short: 'v' }
 }
@@ -457,6 +458,7 @@ function usage () {
   console.log('        --rate-limit     add express-rate-limit to limit requests per client')
   console.log('        --session        add express-session for sessions (not with --api)')
   console.log('        --csrf           add CSRF protection for forms (needs --session)')
+  console.log('        --uploads        add multer and an upload route at /uploads')
   console.log('        --logger <name>  request logger (morgan|pino) (defaults to morgan)')
   console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and an npm run lint script')

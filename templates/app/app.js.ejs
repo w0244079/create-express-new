@@ -55,14 +55,7 @@ if (!process.env.SESSION_SECRET && app.get('env') === 'production') {
 }
 
 <% } -%>
-<% if (csrf) { -%>
-// CSRF protection for requests that change data, which must send the token
-// in a _csrf form field or an x-csrf-token header (GET is not checked)
-const { csrfSynchronisedProtection, generateToken } = csrfSync({
-  getTokenFromRequest: (req) => req.body?._csrf ?? req.get('x-csrf-token'),
-});
-
-<% } -%>// health check for load balancers and containers, defined before the
+// health check for load balancers and containers, defined before the
 // middleware so it stays fast and out of the request logs
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

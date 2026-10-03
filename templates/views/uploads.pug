@@ -1,0 +1,10 @@
+extends layout
+
+block content
+  h1= title
+  if uploaded
+    p Uploaded #{uploaded}
+  form(method='post', action='/uploads', enctype='multipart/form-data')
+    @csrf
+    input(type='file', name='file')
+    button(type='submit') Upload

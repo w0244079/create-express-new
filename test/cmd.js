@@ -1045,22 +1045,32 @@ describe('express(1)', function () {
     it('should create basic app', function (done) {
       run(ctx.dir, ['--session', '--csrf'], function (err, stdout) {
         if (err) return done(err)
-        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 18)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
 
-    it('should use csrf-sync after sessions', function () {
+    it('should use csrf-sync from csrf.js after sessions', function () {
       const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
       const contents = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      const csrf = fs.readFileSync(path.resolve(ctx.dir, 'csrf.js'), 'utf8')
       assert.strictEqual(pkg.dependencies['csrf-sync'], VERSIONS['csrf-sync'])
-      assert.ok(/^import \{ csrfSync \} from 'csrf-sync';$/m.test(contents))
-      assert.ok(contents.indexOf('app.use(csrfSynchronisedProtection)') > contents.indexOf('app.use(session('))
+      assert.ok(/^import \{ csrfSync \} from 'csrf-sync';$/m.test(csrf))
+      assert.ok(!/skipCsrfProtection/.test(csrf))
+      assert.ok(/^import csrf from '\.\/csrf\.js';$/m.test(contents))
+      assert.ok(contents.indexOf('app.use(csrf.csrfSynchronisedProtection)') > contents.indexOf('app.use(session('))
     })
 
     it('should put the token in the page layout', function () {
       const contents = fs.readFileSync(path.resolve(ctx.dir, 'views', 'layout.pug'), 'utf8')
       assert.ok(/^ {4}title= title\n {4}meta\(name='csrf-token', content=csrfToken\)$/m.test(contents))
+    })
+
+    it('should have an example form with the token', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'views', 'new-user.pug'), 'utf8')
+      assert.ok(/^ {4}input\(type='hidden', name='_csrf', value=csrfToken\)$/m.test(contents))
+      assert.ok(!/@csrf/.test(contents))
     })
 
     it('should have installable dependencies', function (done) {
@@ -1096,19 +1106,24 @@ describe('express(1)', function () {
           .expect(403, /invalid csrf token/, done)
       })
 
-      it('should accept a form post with the token from the page', function (done) {
+      it('should accept a form post with the token from the form', function (done) {
         const agent = request.agent(this.app)
 
-        agent.get('/').expect(200, function (err, res) {
+        agent.get('/users/new').expect(200, function (err, res) {
           if (err) return done(err)
 
-          const token = /<meta name="csrf-token" content="([^"]+)">/.exec(res.text)[1]
+          const token = /<input type="hidden" name="_csrf" value="([^"]+)">/.exec(res.text)[1]
 
-          // past the CSRF check, to the 404 for a route the app does not have
-          agent.post('/users')
+          agent.post('/users/new')
             .type('form')
-            .send({ _csrf: token })
-            .expect(404, done)
+            .send({ _csrf: token, name: '<Ada>' })
+            .expect('Location', '/users/new?added=%3CAda%3E')
+            .expect(303, function (postErr) {
+              if (postErr) return done(postErr)
+
+              // the name is escaped in the page
+              agent.get('/users/new?added=%3CAda%3E').expect(200, /Added &lt;Ada&gt;/, done)
+            })
         })
       })
     })
@@ -1123,6 +1138,8 @@ describe('express(1)', function () {
             const file = path.resolve(ctx0.dir, 'views', engine === 'ejs' ? 'index.ejs' : 'layout.' + engine)
             const contents = fs.readFileSync(file, 'utf8')
             assert.ok(/<title>.*<\/title>\n {4}<meta name="csrf-token" content="[^"]+">\n/.test(contents))
+            const form = fs.readFileSync(path.resolve(ctx0.dir, 'views', 'new-user.' + engine), 'utf8')
+            assert.ok(/\n +<input type="hidden" name="_csrf" value="[^"]+">\n/.test(form))
             done()
           })
         })
@@ -1151,6 +1168,248 @@ describe('express(1)', function () {
           assert.strictEqual(code, 1)
           assert.ok(/error: option `--csrf' needs a view engine/.test(stderr))
           done()
+        })
+      })
+    })
+  })
+
+  describe('--uploads', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--uploads', '--docker'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 22)
+        done()
+      })
+    })
+
+    it('should have an upload route and form', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      const app = fs.readFileSync(path.resolve(ctx.dir, 'app.js'), 'utf8')
+      const route = fs.readFileSync(path.resolve(ctx.dir, 'routes', 'uploads.js'), 'utf8')
+      const view = fs.readFileSync(path.resolve(ctx.dir, 'views', 'uploads.pug'), 'utf8')
+      assert.strictEqual(pkg.dependencies.multer, VERSIONS.multer)
+      assert.ok(/^app\.use\('\/uploads', uploadsRouter\);$/m.test(app))
+      assert.ok(/^import multer from 'multer';$/m.test(route))
+      assert.ok(/fileSize: Number\(process\.env\.UPLOAD_MAX_SIZE\)/.test(route))
+      assert.ok(!/csrf/.test(route))
+      assert.ok(/enctype='multipart\/form-data'/.test(view))
+      assert.ok(!/@csrf|_csrf/.test(view))
+      assert.strictEqual(ctx.files.indexOf('views/new-user.pug'), -1)
+    })
+
+    it('should ignore uploaded files', function () {
+      assert.ok(/^uploads\/$/m.test(fs.readFileSync(path.resolve(ctx.dir, '.gitignore'), 'utf8')))
+      assert.ok(/^uploads\/$/m.test(fs.readFileSync(path.resolve(ctx.dir, '.dockerignore'), 'utf8')))
+      assert.ok(/^# UPLOAD_MAX_SIZE=5242880$/m.test(fs.readFileSync(path.resolve(ctx.dir, '.env.example'), 'utf8')))
+    })
+
+    it('should give the node user an uploads folder in the image', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
+      assert.ok(/^RUN mkdir -p uploads && chown node:node uploads\nUSER node$/m.test(contents))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmInstall(ctx.dir, done)
+    })
+
+    it('should pass its tests, leaving no uploaded files', function (done) {
+      this.timeout(NPM_INSTALL_TIMEOUT)
+      npmRun(ctx.dir, 'test', function (err) {
+        if (err) return done(err)
+        assert.deepStrictEqual(fs.readdirSync(path.resolve(ctx.dir, 'uploads')), [])
+        done()
+      })
+    })
+
+    describe('npm start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should show the upload form', function (done) {
+        request(this.app)
+          .get('/uploads')
+          .expect(200, /<form method="post" action="\/uploads" enctype="multipart\/form-data">/, done)
+      })
+
+      it('should save an upload and redirect to the form', function (done) {
+        request(this.app)
+          .post('/uploads')
+          .attach('file', Buffer.from('hello'), { filename: 'hello.txt', contentType: 'text/plain' })
+          .expect('Location', '/uploads?uploaded=hello.txt')
+          .expect(303, function (err) {
+            if (err) return done(err)
+            const files = fs.readdirSync(path.resolve(ctx.dir, 'uploads'))
+            assert.strictEqual(files.length, 1)
+            assert.strictEqual(fs.readFileSync(path.resolve(ctx.dir, 'uploads', files[0]), 'utf8'), 'hello')
+            done()
+          })
+      })
+
+      it('should not serve uploaded files', function (done) {
+        const file = fs.readdirSync(path.resolve(ctx.dir, 'uploads'))[0]
+
+        request(this.app)
+          .get('/uploads/' + file)
+          .expect(404, done)
+      })
+
+      it('should reject unsupported file types', function (done) {
+        request(this.app)
+          .post('/uploads')
+          .attach('file', Buffer.from('<script>'), { filename: 'page.html', contentType: 'text/html' })
+          .expect(415, done)
+      })
+
+      it('should ask for a file', function (done) {
+        request(this.app)
+          .post('/uploads')
+          .field('note', 'no file')
+          .expect(400, /Choose a file to upload/, done)
+      })
+    })
+
+    describe('with --api', function () {
+      const ctx0 = setupTestEnvironment('uploads with api')
+
+      it('should create basic app', function (done) {
+        run(ctx0.dir, ['--api', '--uploads'], function (err, stdout) {
+          if (err) return done(err)
+          assert.strictEqual(utils.parseCreatedFiles(stdout, ctx0.dir).length, 12)
+          done()
+        })
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx0.dir, done)
+      })
+
+      describe('npm start', function () {
+        before('start app', function () {
+          this.app = new AppRunner(ctx0.dir)
+        })
+
+        after('stop app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.stop(done)
+        })
+
+        it('should start app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.start(done)
+        })
+
+        it('should respond with the saved file as JSON', function (done) {
+          request(this.app)
+            .post('/uploads')
+            .attach('file', Buffer.from('hello'), { filename: 'hello.txt', contentType: 'text/plain' })
+            .expect(201, function (err, res) {
+              if (err) return done(err)
+              assert.strictEqual(res.body.name, 'hello.txt')
+              assert.strictEqual(res.body.type, 'text/plain')
+              assert.strictEqual(res.body.size, 5)
+              assert.ok(fs.existsSync(path.resolve(ctx0.dir, 'uploads', res.body.id)))
+              done()
+            })
+        })
+
+        it('should respond with JSON for files over the size limit', function (done) {
+          request(this.app)
+            .post('/uploads')
+            .attach('file', Buffer.alloc(6 * 1024 * 1024), { filename: 'big.txt', contentType: 'text/plain' })
+            .expect(413, function (err, res) {
+              if (err) return done(err)
+              assert.strictEqual(res.body.error, 'File too large')
+              done()
+            })
+        })
+      })
+    })
+
+    describe('with --session --csrf', function () {
+      const ctx0 = setupTestEnvironment('uploads with csrf')
+
+      it('should create basic app', function (done) {
+        run(ctx0.dir, ['--uploads', '--session', '--csrf'], function (err) {
+          if (err) return done(err)
+          done()
+        })
+      })
+
+      it('should check the token in the upload route', function () {
+        const csrf = fs.readFileSync(path.resolve(ctx0.dir, 'csrf.js'), 'utf8')
+        const route = fs.readFileSync(path.resolve(ctx0.dir, 'routes', 'uploads.js'), 'utf8')
+        const view = fs.readFileSync(path.resolve(ctx0.dir, 'views', 'uploads.pug'), 'utf8')
+        assert.ok(/^ {2}skipCsrfProtection: \(req\) => req\.path === '\/uploads'$/m.test(csrf))
+        assert.ok(/^ {4}if \(!csrf\.isRequestValid\(req\)\) return cb\(csrf\.invalidCsrfTokenError\);$/m.test(route))
+        // the token field comes before the file, so it is read first
+        assert.ok(view.indexOf("name='_csrf'") < view.indexOf("type='file'"))
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmInstall(ctx0.dir, done)
+      })
+
+      it('should pass its tests', function (done) {
+        this.timeout(NPM_INSTALL_TIMEOUT)
+        npmRun(ctx0.dir, 'test', done)
+      })
+
+      describe('npm start', function () {
+        before('start app', function () {
+          this.app = new AppRunner(ctx0.dir)
+        })
+
+        after('stop app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.stop(done)
+        })
+
+        it('should start app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.start(done)
+        })
+
+        it('should not save a file without the token', function (done) {
+          request(this.app)
+            .post('/uploads')
+            .attach('file', Buffer.from('hello'), { filename: 'hello.txt', contentType: 'text/plain' })
+            .expect(403, function (err) {
+              if (err) return done(err)
+              assert.deepStrictEqual(fs.readdirSync(path.resolve(ctx0.dir, 'uploads')), [])
+              done()
+            })
+        })
+
+        it('should save a file sent after the token', function (done) {
+          const agent = request.agent(this.app)
+
+          agent.get('/uploads').expect(200, function (err, res) {
+            if (err) return done(err)
+
+            const token = /<input type="hidden" name="_csrf" value="([^"]+)">/.exec(res.text)[1]
+
+            agent.post('/uploads')
+              .field('_csrf', token)
+              .attach('file', Buffer.from('hello'), { filename: 'hello.txt', contentType: 'text/plain' })
+              .expect(303, done)
+          })
         })
       })
     })
@@ -1563,7 +1822,7 @@ describe('express(1)', function () {
       const ctx0 = setupTestEnvironment('ts all middleware')
 
       it('should create basic app', function (done) {
-        run(ctx0.dir, ['--ts', '--helmet', '--compression', '--cookies', '--view', 'ejs', '--rate-limit', '--session', '--csrf', '--logger=pino'], function (err, stdout) {
+        run(ctx0.dir, ['--ts', '--helmet', '--compression', '--cookies', '--view', 'ejs', '--rate-limit', '--session', '--csrf', '--uploads', '--logger=pino'], function (err, stdout) {
           if (err) return done(err)
           ctx0.files = utils.parseCreatedFiles(stdout, ctx0.dir)
           done()
@@ -1577,6 +1836,7 @@ describe('express(1)', function () {
         assert.strictEqual(typeof pkg.devDependencies['@types/cookie-parser'], 'string')
         assert.strictEqual(typeof pkg.devDependencies['@types/express-session'], 'string')
         assert.strictEqual(pkg.devDependencies['@types/morgan'], undefined)
+        assert.strictEqual(typeof pkg.devDependencies['@types/multer'], 'string')
       })
 
       it('should have installable dependencies', function (done) {

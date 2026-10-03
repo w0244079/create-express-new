@@ -1,0 +1,13 @@
+extends layout
+
+block content
+  h1= title
+  if added
+    p Added #{added}
+  if error
+    p.error= error
+  form(method='post', action='/users/new')
+    @csrf
+    label(for='name') Name
+    input#name(type='text', name='name', value=name)
+    button(type='submit') Add user

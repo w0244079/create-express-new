@@ -1,0 +1,11 @@
+{% extends 'layout.twig' %}
+
+{% block body %}
+  <h1>{{ title|e }}</h1>
+  {% if uploaded %}<p>Uploaded {{ uploaded|e }}</p>{% endif %}
+  <form method="post" action="/uploads" enctype="multipart/form-data">
+    @csrf
+    <input type="file" name="file">
+    <button type="submit">Upload</button>
+  </form>
+{% endblock %}

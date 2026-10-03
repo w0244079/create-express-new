@@ -1,15 +1,25 @@
 <% if (esm) { -%>
 import assert from 'node:assert';
 import { once } from 'node:events';
+<% if (uploads) { -%>
+import fs from 'node:fs';
+<% } -%>
 <% if (ts) { -%>
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 <% } -%>
 import { after, before, describe, it } from 'node:test';
+<% if (uploads) { -%>
+import path from 'node:path';
+<% } -%>
 import app from '../app.<%- ext %>';
 <% } else { -%>
 const assert = require('node:assert');
 const { once } = require('node:events');
+<% if (uploads) { -%>
+const fs = require('node:fs');
+const path = require('node:path');
+<% } -%>
 const { after, before, describe, it } = require('node:test');
 const app = require('../app.js');
 <% } -%>
@@ -40,6 +50,20 @@ describe('app', () => {
   after(() => {
     server.close();
   });
+<% if (csrf) { -%>
+
+  // a session cookie and its CSRF token, from a page with a form
+<% if (ts) { -%>
+  async function csrfSession(url: string) {
+<% } else { -%>
+  async function csrfSession(url) {
+<% } -%>
+    const res = await fetch(url);
+    const cookie = res.headers.getSetCookie().map((header) => header.split(';')[0]).join('; ');
+    const token = /<meta name="csrf-token" content="([^"]+)">/.exec(await res.text())?.[1] ?? '';
+    return { cookie, token };
+  }
+<% } -%>
 
   it('responds to GET /health', async () => {
     const res = await fetch(`${baseUrl}/health`);
@@ -56,8 +80,83 @@ describe('app', () => {
 <% } -%>
 <% if (csrf) { -%>
   it('rejects posts without a CSRF token', async () => {
-    const res = await fetch(`${baseUrl}/users`, { method: 'POST' });
+    const res = await fetch(`${baseUrl}/users/new`, { method: 'POST', body: new URLSearchParams({ name: 'Ada' }) });
     assert.strictEqual(res.status, 403);
+  });
+
+  it('adds a user with the form and its CSRF token', async () => {
+    const { cookie, token } = await csrfSession(`${baseUrl}/users/new`);
+    const res = await fetch(`${baseUrl}/users/new`, {
+      method: 'POST',
+      headers: { cookie },
+      body: new URLSearchParams({ _csrf: token, name: 'Ada' }),
+      redirect: 'manual'
+    });
+    assert.strictEqual(res.status, 303);
+    assert.strictEqual(res.headers.get('location'), '/users/new?added=Ada');
+  });
+
+  it('asks again for a user without a name', async () => {
+    const { cookie, token } = await csrfSession(`${baseUrl}/users/new`);
+    const res = await fetch(`${baseUrl}/users/new`, {
+      method: 'POST',
+      headers: { cookie },
+      body: new URLSearchParams({ _csrf: token, name: ' ' })
+    });
+    assert.strictEqual(res.status, 400);
+    assert.match(await res.text(), /Enter a name/);
+  });
+
+<% } -%>
+<% if (uploads) { -%>
+  it('uploads a file', async () => {
+    const uploads = path.join(<%- esm ? 'import.meta.dirname' : '__dirname' %>, '..', 'uploads');
+    const existing = new Set(fs.readdirSync(uploads));
+<% if (csrf) { -%>
+    const { cookie, token } = await csrfSession(`${baseUrl}/uploads`);
+<% } -%>
+    const body = new FormData();
+<% if (csrf) { -%>
+    // the token comes before the file, so it is checked before saving
+    body.append('_csrf', token);
+<% } -%>
+    body.append('file', new Blob(['hello'], { type: 'text/plain' }), 'hello.txt');
+
+<% if (csrf) { -%>
+    const res = await fetch(`${baseUrl}/uploads`, { method: 'POST', headers: { cookie }, body, redirect: 'manual' });
+<% } else { -%>
+    const res = await fetch(`${baseUrl}/uploads`, { method: 'POST', body, redirect: 'manual' });
+<% } -%>
+<% if (view) { -%>
+    assert.strictEqual(res.status, 303);
+    assert.strictEqual(res.headers.get('location'), '/uploads?uploaded=hello.txt');
+<% } else { -%>
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual((await res.json()).name, 'hello.txt');
+<% } -%>
+
+    // remove the uploaded file
+    const added = fs.readdirSync(uploads).filter((file) => !existing.has(file));
+    assert.strictEqual(added.length, 1);
+    for (const file of added) fs.rmSync(path.join(uploads, file));
+  });
+
+  it('rejects unsupported file types', async () => {
+<% if (csrf) { -%>
+    const { cookie, token } = await csrfSession(`${baseUrl}/uploads`);
+<% } -%>
+    const body = new FormData();
+<% if (csrf) { -%>
+    body.append('_csrf', token);
+<% } -%>
+    body.append('file', new Blob(['<html>'], { type: 'text/html' }), 'page.html');
+
+<% if (csrf) { -%>
+    const res = await fetch(`${baseUrl}/uploads`, { method: 'POST', headers: { cookie }, body });
+<% } else { -%>
+    const res = await fetch(`${baseUrl}/uploads`, { method: 'POST', body });
+<% } -%>
+    assert.strictEqual(res.status, 415);
   });
 
 <% } -%><% if (api) { -%>

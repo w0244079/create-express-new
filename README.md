@@ -153,12 +153,14 @@ files with `--api`). Add more with:
   [store](https://github.com/expressjs/session#compatible-session-stores) such as `connect-redis`
   before going to production.
 - `--csrf` (with `--session` and a view engine): [csrf-sync](https://github.com/Psifi-Solutions/csrf-sync)
-  CSRF protection. Requests other than `GET`, `HEAD` and `OPTIONS` need the session's token, or get
-  `403 Forbidden`. Views get it as `csrfToken`, and the page layout has it in a
-  `<meta name="csrf-token">` tag. Send it in a hidden `_csrf` form field:
+  CSRF protection, set up in `csrf.js`. Requests other than `GET`, `HEAD` and `OPTIONS` need the
+  session's token, or get `403 Forbidden`. Views get it as `csrfToken`, and the page layout has it in a
+  `<meta name="csrf-token">` tag. An example form at `/users/new` shows it in use, with a
+  `POST /users/new` that checks the name and redirects back. Send the token in a hidden `_csrf` form
+  field:
 
   ```pug
-  form(method='post', action='/users')
+  form(method='post', action='/users/new')
     input(type='hidden', name='_csrf', value=csrfToken)
   ```
 
@@ -166,14 +168,41 @@ files with `--api`). Add more with:
 
   ```js
   const token = document.querySelector('meta[name="csrf-token"]').content;
-  await fetch('/users', { method: 'POST', headers: { 'x-csrf-token': token } });
+  await fetch('/users/new', { method: 'POST', headers: { 'x-csrf-token': token }, body: new URLSearchParams({ name: 'Ada' }) });
   ```
+
+- `--uploads`: [multer](https://github.com/expressjs/multer) and a `POST /uploads` route that takes one
+  file in a `file` field, with a form at `GET /uploads` in apps with views (JSON APIs and `--no-view`
+  apps respond with the saved file's details as JSON instead). See [File uploads](#file-uploads).
 
 `--rate-limit` and `--session` also make the app trust the `X-Forwarded-*` headers of the proxies set
 in `TRUST_PROXY`, the number of proxies (such as `1` behind one load balancer) or their addresses.
 Behind a proxy, set it so the rate limit counts each client rather than the proxy, and session
 cookies are `Secure` when the proxy terminates HTTPS. Leave it unset otherwise, as clients could
 then fake their address.
+
+### File uploads
+
+`--uploads` adds multer to the `/uploads` route only, rather than to every route, so no other route
+accepts files. Its `routes/uploads.js`:
+
+- saves files in `uploads/` under random names, never the name the client sent, and does not serve
+  them as static files, where an uploaded HTML or SVG file could run scripts on your site. Both
+  `.gitignore` and `.dockerignore` ignore the folder.
+- accepts one file of up to 5 MB (set `UPLOAD_MAX_SIZE` in bytes to change it), responding with
+  `413` for larger files and `400` for other upload errors.
+- accepts only PDF, GIF, JPEG, PNG, WebP and plain text files, responding with `415` for others. Edit
+  `TYPES` to change the list. The type is the one the client sends, so check a file's contents too
+  before trusting it.
+
+With `--csrf`, the CSRF check for the whole app skips `/uploads`, as multer reads the form, including
+its `_csrf` field, only inside the route. The route checks the token itself as soon as the file
+arrives, before saving anything, so the `_csrf` field must come before the file in the form, as it
+does in the generated one. JavaScript can send the token in an `x-csrf-token` header instead.
+
+With `--docker`, the image has an `uploads` folder the app can write to. Files saved in a container are
+lost when it is replaced, so mount a volume at `/app/uploads`, or store files somewhere else, such as
+object storage, in production.
 
 ### Request logging
 
@@ -221,6 +250,7 @@ support TypeScript 7 yet, these apps use TypeScript 6.
         --rate-limit     add express-rate-limit to limit requests per client
         --session        add express-session for sessions (not with --api)
         --csrf           add CSRF protection for forms (needs --session)
+        --uploads        add multer and an upload route at /uploads
         --logger <name>  request logger (morgan|pino) (defaults to morgan)
         --docker         add a Dockerfile for a production image
         --lint           add ESLint and an npm run lint script
@@ -244,7 +274,8 @@ This fork started from `express-generator` 4.16.1.
 - A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects
 - Request logs are skipped while the generated tests run, keeping `npm test` output readable
 - `--helmet`, `--compression`, `--cookies`, `--cors`, `--rate-limit`, `--session` and `--csrf` options
-  for opt-in middleware, and `--logger=pino` for JSON request logs
+  for opt-in middleware, `--uploads` for file uploads with multer, and `--logger=pino` for JSON request
+  logs
 - `--docker` for a production Dockerfile with a `HEALTHCHECK`
 - A `GET /health` endpoint for load balancers, container health checks and uptime monitors
 - `--lint` for ESLint, including typescript-eslint for TypeScript apps

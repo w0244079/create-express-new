@@ -14,6 +14,11 @@ All notable changes to this project are documented here. The format is based on
   HTTPS, and refuses to start in production without `SESSION_SECRET`
 - `--csrf` adds csrf-sync CSRF protection to apps with `--session` and a view engine, with the token
   in views as `csrfToken` and in a `csrf-token` meta tag in the page layout
+- `--uploads` adds multer and a `POST /uploads` route for web apps and JSON APIs, saving one file of
+  up to 5 MB (`UPLOAD_MAX_SIZE`) of an allowed type in an ignored `uploads/` folder, with an upload
+  form in apps with views; with `--csrf` it checks the token before saving the file, and with
+  `--docker` the image has a writable `uploads` folder
+- With `--csrf`, an example form at `/users/new` and CSRF setup in its own `csrf.js`
 - `--logger=pino` logs requests as JSON with pino-http instead of morgan, pretty printed by
   `npm run dev`
 - `TRUST_PROXY` sets the proxies the app trusts, for apps with `--rate-limit` or `--session`
@@ -37,6 +42,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- twig error pages escape the error message and stack, as twig.js does not escape output by default
 - An overwritten or identical `bin/www` is made executable, as writing an existing file kept its mode
 - A file where the app needs a folder (or a folder where it needs a file) is reported before
   anything is written, instead of failing with a partly generated app
