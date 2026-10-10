@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-10
+
+### Added
+
+- `--install` installs the dependencies after creating the app, with the app's package manager, as
+  the wizard already offered; the wizard's equivalent command includes it
+
+### Changed
+
+- Generated apps use newer versions of `eslint`, `globals` and `@types/node`, and generated
+  Dockerfiles install newer versions of pnpm and npm
+
 ## [1.0.0] - 2026-10-10
 
 The first release of `create-express-new`, a fork of
@@ -109,5 +121,6 @@ the full list and a table for migrating commands.
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - The `debug` package and `DEBUG=...` start instructions
 
-[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/w0244079/create-express-new/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/w0244079/create-express-new/releases/tag/v1.0.0

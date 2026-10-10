@@ -57,7 +57,7 @@ $ pnpm install
 
 With `npm create`, put the options after `--`: `npm create express-new@latest my-app -- --ts --helmet`.
 `npx create-express-new my-app --ts --helmet` needs no `--`. Either way the app requires pnpm unless
-you add `--pm=npm`.
+you add `--pm=npm`. Add `--install` to install the dependencies too, with the app's package manager.
 
 Start it at `http://localhost:3000/`, and run its tests, written with the built-in
 [`node:test`](https://nodejs.org/api/test.html) runner:
@@ -235,6 +235,7 @@ support TypeScript 7 yet, these apps use TypeScript 6.
         --docker         add a Dockerfile for a production image
         --lint           add ESLint and a lint script
         --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)
+        --install        install the dependencies after creating the app
         --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
         --keep-config    keep existing config files (.env.example, Dockerfile,

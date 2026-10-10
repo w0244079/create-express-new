@@ -25,6 +25,7 @@ const OPTIONS = {
   git: { type: 'boolean' },
   helmet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
+  install: { type: 'boolean' },
   'keep-config': { type: 'boolean' },
   lint: { type: 'boolean' },
   logger: { type: 'string' },
@@ -44,7 +45,7 @@ const args = process.argv.slice(2)
 
 if (args.length === 0 && process.stdin.isTTY && process.stdout.isTTY) {
   wizard({ input: process.stdin, output: process.stdout }).then((options) => {
-    main(options, (code) => installDependencies(options, code))
+    main(options, exit)
   }, (err) => {
     if (!(err instanceof CancelError)) throw err
     console.error('aborting')
@@ -130,28 +131,24 @@ function createApplication (dir, entries, leftovers, options, done) {
       'remove them if they are from an earlier app with other options')
   }
 
-  // dependencies installed by the wizard print next steps afterwards
-  if (!options.install) {
+  if (options.install) {
+    installDependencies(dir, options.pm, done)
+  } else {
     printNextSteps(dir, options.pm, true)
+    done(0)
   }
-
-  done(0)
 }
 
 /**
- * Install the generated app's dependencies with its package manager, when
- * the wizard asked to.
+ * Install the generated app's dependencies with its package manager, then
+ * display the next steps.
  *
- * @param {object} options
- * @param {number} code
+ * @param {string} dir
+ * @param {string} pm the app's package manager
+ * @param {function} done
  */
 
-function installDependencies (options, code) {
-  if (code !== 0 || !options.install) return exit(code)
-
-  const dir = options._[0]
-  const pm = options.pm
-
+function installDependencies (dir, pm, done) {
   console.log('   installing dependencies...')
   console.log()
 
@@ -170,14 +167,14 @@ function installDependencies (options, code) {
       ? pm + ' is not installed, see ' + PACKAGE_MANAGERS[pm].docs
       : pm + ' install failed: ' + err.message)
     printNextSteps(dir, pm, true)
-    exit(1)
+    done(1)
   })
 
   child.on('close', (status) => {
     if (failed) return
     if (status !== 0) error(pm + ' install failed')
     printNextSteps(dir, pm, status !== 0)
-    exit(status === 0 ? 0 : 1)
+    done(status === 0 ? 0 : 1)
   })
 }
 
@@ -487,6 +484,7 @@ function usage () {
   console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and a lint script')
   console.log('        --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)')
+  console.log('        --install        install the dependencies after creating the app')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('        --keep-config    keep existing config files (.env.example, Dockerfile,')
