@@ -257,13 +257,14 @@ pug in place of jade, for Node.js 22.9 or newer. `--view=<engine>` replaces the 
 ## Contributing
 
 ```bash
-$ npm install
-$ npm test       # generates, installs and runs apps for each option
-$ npm run lint
+$ pnpm install
+$ pnpm test      # generates, installs and runs apps for each option
+$ pnpm lint
 ```
 
-The tests install the generated apps with pnpm, so [install pnpm](https://pnpm.io/installation)
-first. The tests that install an npm app are skipped unless your npm is version 12 or newer.
+This repository requires pnpm 11 or newer, as generated apps do by default, so
+[install pnpm](https://pnpm.io/installation) first; npm refuses to install it or run its scripts.
+The tests that install an npm app are skipped unless your npm is version 12 or newer.
 
 See [Maintaining](docs/maintaining.md) for keeping the dependency versions of generated apps current,
 and for releasing.

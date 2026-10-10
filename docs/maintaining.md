@@ -6,8 +6,8 @@ The versions of the packages that generated apps depend on live in
 [`templates/versions.json`](../templates/versions.json). Dependabot does not cover them, so check them with:
 
 ```bash
-$ npm run versions              # report versions that are behind, too new, or have a new major
-$ npm run versions -- --update  # raise each version to the newest release in its major
+$ pnpm run versions           # report versions that are behind, too new, or have a new major
+$ pnpm run versions --update  # raise each version to the newest release in its major
 ```
 
 - **Too new:** generated apps do not install a release until it is 3 days old, so an app cannot be
@@ -22,11 +22,13 @@ $ npm run versions -- --update  # raise each version to the newest release in it
 
 ## Releasing
 
-Releases are published to npm by the `publish` workflow when a version tag is pushed, using
-[npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is needed.
+Releases are published to npm by the `publish` workflow when a version tag is pushed. It runs
+`pnpm publish` with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm
+token is needed.
 
 1. Move the `Unreleased` entries in [`CHANGELOG.md`](../CHANGELOG.md) under the new version and date
-2. Bump the version without tagging yet: `npm version <major|minor|patch> --no-git-tag-version`
+2. Bump the version without tagging yet:
+   `pnpm version <major|minor|patch> --no-git-tag-version --no-git-checks`
 3. Commit both, then tag and push: `git tag vX.Y.Z && git push origin HEAD vX.Y.Z`
 
 The workflow checks that the tag matches `package.json` and has a changelog entry, then runs lint
