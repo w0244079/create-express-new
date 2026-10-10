@@ -1,7 +1,7 @@
 // Check the dependency versions used by generated apps against the npm registry.
 //
-//   npm run versions             report drift, exit 1 if anything is behind
-//   npm run versions -- --update raise each version floor to the newest
+//   pnpm run versions            report drift, exit 1 if anything is behind
+//   pnpm run versions --update   raise each version floor to the newest
 //                                release within its current major
 //
 // Generated apps wait 3 days before installing a newly published version
@@ -38,7 +38,7 @@ const hold = config.hold || {}
 const results = await Promise.all(Object.entries(config.versions).map(async ([name, range]) => {
   // `typescript@6` checks typescript within major 6
   const pkg = name.replace(/(.)@\d+$/, '$1')
-  const { stdout } = await run(`npm view ${pkg} versions time dist-tags.latest --json`)
+  const { stdout } = await run(`pnpm view ${pkg} versions time dist-tags.latest --json`)
   const info = JSON.parse(stdout)
   const floor = parse(range.replace(/^\^/, ''))
   const versions = info.versions.filter((v) => STABLE.test(v)).map(parse)
@@ -99,7 +99,7 @@ for (const [name, entry] of Object.entries(hold)) {
   if (!entry.until) continue
 
   const { package: pkg, peer, supports } = entry.until
-  const { stdout } = await run(`npm view ${pkg} version peerDependencies --json`)
+  const { stdout } = await run(`pnpm view ${pkg} version peerDependencies --json`)
   const info = JSON.parse(stdout)
   const range = (info.peerDependencies || {})[peer] || ''
 

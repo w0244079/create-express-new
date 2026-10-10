@@ -1,0 +1,19 @@
+// The development environment: the Node.js version the publish workflow uses,
+// with the pnpm and npm versions that generated apps install, as in the ci
+// workflow, so that no test is skipped.
+{
+  "name": "create-express-new",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+
+  // npm 12 is for the tests that install an npm app; this repository itself
+  // requires pnpm
+  "postCreateCommand": "npm install -g \"pnpm@$(node -p \"require('./templates/versions.json').versions.pnpm.slice(1)\")\" \"npm@$(node -p \"require('./templates/versions.json').versions.npm.slice(1)\")\" && pnpm install --frozen-lockfile",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}
