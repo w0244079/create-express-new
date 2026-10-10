@@ -6,8 +6,27 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-10
+
+The first release of `create-express-new`, a fork of
+[`express-generator`](https://github.com/expressjs/generator) 4.16.1 reimagined for Express 5 and
+current Node.js. See [Changes from express-generator](docs/changes-from-express-generator.md) for
+the full list and a table for migrating commands.
+
 ### Added
 
+- `npm create express-new@latest`, with an interactive wizard when run without arguments in a
+  terminal; Esc goes back, and it shows the equivalent command and offers to install the dependencies
+- ES module output by default, `--cjs` for CommonJS and `--ts` for TypeScript, run directly by
+  Node.js with no build step
+- `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in
+  production
+- `--helmet`, `--compression`, `--cookies` and `--cors` for opt-in middleware
+- `--docker` for a production Dockerfile running as the `node` user, with a `HEALTHCHECK`
+- `--lint` for ESLint, including typescript-eslint for TypeScript apps
+- A `GET /health` endpoint, `.env` loading with a generated `.env.example`, an `npm run dev` script
+  using `node --watch`, and a `node:test` test suite in every app
+- Graceful shutdown on SIGINT and SIGTERM, and a modern `.gitignore` (skip it with `--no-git`)
 - `--rate-limit` adds express-rate-limit, limiting each client to 100 requests every 15 minutes
   (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`), after static files and never on `/health`
 - `--session` adds express-session for web apps, with `SameSite=Lax` cookies that are `Secure` over
@@ -24,13 +43,11 @@ All notable changes to this project are documented here. The format is based on
 - `TRUST_PROXY` sets the proxies the app trusts, for apps with `--rate-limit` or `--session`
 - The wizard offers express-rate-limit and express-session (for web apps) with the other middleware,
   asks about CSRF protection when sessions are chosen, and asks which request logger to use
-
 - `--keep-config` keeps existing config files (`.env.example`, `Dockerfile`, `.dockerignore`,
   `tsconfig.json`, `eslint.config.*`) when generating into a non-empty directory
 - The wizard lists the existing files an app would overwrite and asks whether to overwrite them,
   keep the config files or cancel
 - The wizard's directory prompt hints that `.` is the current directory
-
 - `--pm` sets the package manager an app requires, `pnpm` (the default) or `npm`, as
   `devEngines.packageManager` in `package.json`, so other package managers refuse to install the
   app or run its scripts
@@ -46,13 +63,18 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
-- **Breaking:** apps require pnpm 11 or newer by default, and `npm install` is refused in them; pass
+- Generates Express 5 apps with current versions of every dependency; apps require Node.js 22.9 or
+  newer (22.18 for TypeScript)
+- The default view engine is pug (was jade); `--view=jade` warns and generates pug
+- `bin/www` is now `bin/www.js`, a short script built on `app.listen()`
+- cookie-parser is no longer included by default; use `--cookies`
+- The generator is an ES module with a single dependency (ejs)
+- Apps require pnpm 11 or newer by default, and `npm install` is refused in them; pass
   `--pm=npm` for an app that requires npm, which now has to be npm 12 or newer
 - The usage, next steps, `.env.example` and the wizard's equivalent command name the app's package
   manager, such as `pnpm create express-new@latest my-app --ts` and `pnpm dev`
 - `--docker` images install dependencies with the app's package manager, at a fixed version, in a
   build stage of their own, so the package manager is not in the final image
-- The `@types/node` and `globals` version floors are lowered to releases that are over 3 days old
 - Every app's error handler logs server errors (5xx) with `console.error`, which no error handler
   did before, so a 500 only showed as a status in the request log
 - An existing `.gitignore` gets the missing lines added instead of being replaced
@@ -79,37 +101,6 @@ All notable changes to this project are documented here. The format is based on
   anything is written, instead of failing with a partly generated app
 - The wizard reports a package manager that is not installed once, with where to get it, instead of
   printing the failure and next steps twice
-
-## [1.0.0] - 2026-10-02
-
-The first release of `create-express-new`, a fork of
-[`express-generator`](https://github.com/expressjs/generator) 4.16.1 reimagined for Express 5 and
-current Node.js. See [Changes from express-generator](docs/changes-from-express-generator.md) for
-the full list and a table for migrating commands.
-
-### Added
-
-- `npm create express-new@latest`, with an interactive wizard when run without arguments in a
-  terminal; Esc goes back, and it shows the equivalent command and offers to run `npm install`
-- ES module output by default, `--cjs` for CommonJS and `--ts` for TypeScript, run directly by
-  Node.js with no build step
-- `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in
-  production
-- `--helmet`, `--compression`, `--cookies` and `--cors` for opt-in middleware
-- `--docker` for a production Dockerfile running as the `node` user, with a `HEALTHCHECK`
-- `--lint` for ESLint, including typescript-eslint for TypeScript apps
-- A `GET /health` endpoint, `.env` loading with a generated `.env.example`, an `npm run dev` script
-  using `node --watch`, and a `node:test` test suite in every app
-- Graceful shutdown on SIGINT and SIGTERM, and a modern `.gitignore` (skip it with `--no-git`)
-
-### Changed
-
-- Generates Express 5 apps with current versions of every dependency; apps require Node.js 22.9 or
-  newer (22.18 for TypeScript)
-- The default view engine is pug (was jade); `--view=jade` warns and generates pug
-- `bin/www` is now `bin/www.js`, a short script built on `app.listen()`
-- cookie-parser is no longer included by default; use `--cookies`
-- The generator is an ES module with a single dependency (ejs)
 
 ### Removed
 
