@@ -1,24 +1,26 @@
 name: publish
 
-# Publish to npm when a GitHub release is published. Uses npm trusted
-# publishing, so no npm token is stored and each version gets provenance.
-# Set it up once on npmjs.com, after the first manual publish: the package's
-# Settings > Trusted Publisher > GitHub Actions, with this repository and the
-# workflow file publish.yml.
+# Publish to npm when a version tag is pushed, then create the GitHub release
+# from the changelog entry. Uses npm trusted publishing, so no npm token is
+# stored and each version gets provenance. Set it up once on npmjs.com, after
+# the first manual publish: the package's Settings > Trusted Publisher >
+# GitHub Actions, with this repository and the workflow file publish.yml.
 
 on:
-  release:
-    types:
-    - published
+  push:
+    tags:
+    - v*
 
 permissions:
   contents: read
-  # lets npm verify that this workflow is publishing
-  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # lets npm verify that this workflow is publishing
+      id-token: write
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,11 +31,15 @@ jobs:
         node-version: 24
         registry-url: https://registry.npmjs.org
 
-    - name: Check the release tag matches the package version
+    - name: Check the tag matches the package version and has a changelog entry
       run: |
-        version="v$(node -p 'require("./package.json").version')"
-        if [ "$version" != "$GITHUB_REF_NAME" ]; then
-          echo "release tag $GITHUB_REF_NAME does not match package.json $version"
+        version="$(node -p 'require("./package.json").version')"
+        if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          echo "tag $GITHUB_REF_NAME does not match package.json v$version"
+          exit 1
+        fi
+        if ! grep -qF "## [$version]" CHANGELOG.md; then
+          echo "CHANGELOG.md has no entry for $version"
           exit 1
         fi
 
@@ -51,3 +57,24 @@ jobs:
     # runs lint and the tests first (prepublishOnly)
     - name: Publish
       run: npm publish
+
+  # the GitHub release, with the changelog entry as its notes
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Create GitHub release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        awk -v heading="## [${GITHUB_REF_NAME#v}]" '
+          index($0, heading) == 1 { found = 1; next }
+          /^## \[/ || /^\[[^]]+\]: / { found = 0 }
+          found
+        ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+        gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
