@@ -1714,6 +1714,68 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--install', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should not install without creating an app', function (done) {
+      run(ctx.dir, ['--install', '--help'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(/--install/.test(stdout))
+        assert.strictEqual(fs.readdirSync(ctx.dir).length, 0, 'should not create files')
+        done()
+      })
+    })
+
+    it('should report a package manager that cannot install', function (done) {
+      // a PATH without the package manager
+      const env = utils.childEnvironment()
+      for (const key in env) {
+        if (key.toUpperCase() === 'PATH') delete env[key]
+      }
+      env.PATH = ctx.dir
+
+      const child = spawn(process.argv[0], [BIN_PATH, '--install', 'missing'], { cwd: ctx.dir, env })
+      let stderr = ''
+      let stdout = ''
+
+      child.stdin.end()
+      child.stdout.setEncoding('utf8')
+      child.stdout.on('data', function (str) { stdout += str })
+      child.stderr.setEncoding('utf8')
+      child.stderr.on('data', function (str) { stderr += str })
+      child.on('error', done)
+      child.on('close', function (code) {
+        assert.strictEqual(code, 1)
+        assert.ok(/error: pnpm (is not installed|install failed)/.test(stderr))
+        assert.ok(fs.existsSync(path.resolve(ctx.dir, 'missing', 'package.json')), 'should keep the app')
+        assert.ok(/ pnpm install/.test(stdout))
+        done()
+      })
+    })
+
+    it('should create an app and install its dependencies', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runRaw(ctx.dir, ['--install', 'foo'], function (err, code, stdout, stderr) {
+        if (err) return done(err)
+        assert.strictEqual(code, 0, stdout + stderr)
+        assert.ok(fs.existsSync(path.resolve(ctx.dir, 'foo', 'node_modules', 'express', 'package.json')))
+        assert.ok(fs.existsSync(path.resolve(ctx.dir, 'foo', 'pnpm-lock.yaml')))
+        ctx.stdout = stdout
+        done()
+      })
+    })
+
+    it('should not provide install instructions', function () {
+      assert.ok(!/ pnpm install/.test(ctx.stdout))
+    })
+
+    it('should provide the other instructions', function () {
+      assert.ok(/cd foo/.test(ctx.stdout))
+      assert.ok(/ pnpm start/.test(ctx.stdout))
+      assert.ok(/ pnpm run dev| pnpm dev/.test(ctx.stdout))
+    })
+  })
+
   describe('(removed options)', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 

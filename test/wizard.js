@@ -437,6 +437,12 @@ describe('toCommand', function () {
     return Object.assign({ _: ['app'], git: true, view: 'pug' }, extra)
   }
 
+  it('should include --install when installing', function () {
+    assert.strictEqual(toCommand(options({ install: true })), 'pnpm create express-new@latest app --install')
+    assert.strictEqual(toCommand(options({ install: true, pm: 'npm', git: false })), 'npm create express-new@latest app -- --pm=npm --no-git --install')
+    assert.strictEqual(toCommand(options({ install: false })), 'pnpm create express-new@latest app')
+  })
+
   it('should omit the default view engine', function () {
     assert.strictEqual(toCommand(options()), 'pnpm create express-new@latest app')
   })
