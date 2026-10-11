@@ -194,6 +194,54 @@ describe('app', () => {
   it('responds with 404 for unknown routes', async () => {
     const res = await fetch(`${baseUrl}/does-not-exist`);
     assert.strictEqual(res.status, 404);
+<% if (webApi) { -%>
+    assert.match(res.headers.get('content-type') ?? '', /text\/html/);
+<% } -%>
   });
+<% if (webApi) { -%>
+
+  it('responds to GET /api', async () => {
+    const res = await fetch(`${baseUrl}/api`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), { message: 'Welcome to Express' });
+  });
+
+  it('responds to GET /api/users', async () => {
+    const res = await fetch(`${baseUrl}/api/users`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), []);
+  });
+
+  it('responds with a JSON 404 for unknown API routes', async () => {
+    const res = await fetch(`${baseUrl}/api/does-not-exist`);
+    assert.strictEqual(res.status, 404);
+    assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+    assert.strictEqual((await res.json()).error, 'Not Found');
+  });
+
+  it('responds with a JSON error for an invalid API request body', async () => {
+    const res = await fetch(`${baseUrl}/api/users`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{'
+    });
+    assert.strictEqual(res.status, 400);
+    assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+  });
+<% if (csrf && csrfSkipApi) { -%>
+
+  it('does not ask API posts for a CSRF token', async () => {
+    const res = await fetch(`${baseUrl}/api/does-not-exist`, { method: 'POST' });
+    assert.strictEqual(res.status, 404);
+  });
+<% } else if (csrf) { -%>
+
+  it('rejects API posts without a CSRF token, with a JSON error', async () => {
+    const res = await fetch(`${baseUrl}/api/users`, { method: 'POST' });
+    assert.strictEqual(res.status, 403);
+    assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+  });
+<% } -%>
+<% } -%>
 });
 <% } -%>

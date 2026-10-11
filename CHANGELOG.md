@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-11
+
+### Added
+
+- `--api` with a view engine, such as `--api --view=pug`, generates a web app with a JSON API: a
+  `routes/api.js` router at `/api`, and JSON responses for every error under `/api`. The wizard offers
+  it as "Web app with a JSON API"
+- `--cors-scope` and `--csrf-scope`, for a web app with a JSON API, choose whether other origins can
+  call only the API (default) or the whole app, and whether the API needs the CSRF token (default) or
+  only the pages do; the wizard asks both
+
+### Changed
+
+- `--api` with `--view` is no longer an error, and `--session` and `--csrf` can be used with them
+
 ## [1.1.0] - 2026-10-10
 
 ### Added
@@ -121,6 +136,7 @@ the full list and a table for migrating commands.
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - The `debug` package and `DEBUG=...` start instructions
 
-[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/w0244079/create-express-new/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/w0244079/create-express-new/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/w0244079/create-express-new/releases/tag/v1.0.0

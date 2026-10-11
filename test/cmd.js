@@ -556,11 +556,294 @@ describe('express(1)', function () {
     describe('with --view', function () {
       const ctx1 = setupTestEnvironment('api with view')
 
-      it('should exit with code 1', function (done) {
-        runRaw(ctx1.dir, ['--api', '--view', 'ejs'], function (err, code, stdout, stderr) {
+      it('should create a web app with an API', function (done) {
+        run(ctx1.dir, ['--api', '--view', 'ejs', '--cors'], function (err, stdout) {
           if (err) return done(err)
-          assert.strictEqual(code, 1)
-          assert.ok(/error: option `--api' cannot be used with `--view'/.test(stderr))
+          ctx1.files = utils.parseCreatedFiles(stdout, ctx1.dir)
+          assert.strictEqual(ctx1.files.length, 19)
+          done()
+        })
+      })
+
+      it('should have views, public files and an API router', function () {
+        assert.notStrictEqual(ctx1.files.indexOf('views/index.ejs'), -1)
+        assert.notStrictEqual(ctx1.files.indexOf('public/stylesheets/style.css'), -1)
+        assert.notStrictEqual(ctx1.files.indexOf('routes/api.js'), -1)
+      })
+
+      it('should mount the API router at /api', function () {
+        const contents = fs.readFileSync(path.resolve(ctx1.dir, 'app.js'), 'utf8')
+        assert.ok(/^import apiRouter from '\.\/routes\/api\.js';$/m.test(contents))
+        assert.ok(/^app\.use\('\/api', apiRouter\);$/m.test(contents))
+      })
+
+      it('should have a JSON error handler for /api before the one for pages', function () {
+        const contents = fs.readFileSync(path.resolve(ctx1.dir, 'app.js'), 'utf8')
+        const api = contents.indexOf("app.use('/api', (err, req, res, next) => {")
+        assert.notStrictEqual(api, -1)
+        assert.ok(api < contents.indexOf('app.use((err, req, res, next) => {'))
+        assert.strictEqual(contents.match(/^ {2}if \(status >= 500\) console\.error\(err\);$/mg).length, 2)
+      })
+
+      it('should only allow other origins to call the API', function () {
+        const contents = fs.readFileSync(path.resolve(ctx1.dir, 'app.js'), 'utf8')
+        assert.ok(/^app\.use\('\/api', cors\(\{$/m.test(contents))
+        assert.ok(!/^app\.use\(cors\(/m.test(contents))
+      })
+
+      it('should have installable dependencies', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        install(ctx1.dir, done)
+      })
+
+      it('should pass its tests', function (done) {
+        this.timeout(INSTALL_TIMEOUT)
+        runScript(ctx1.dir, 'test', done)
+      })
+
+      describe('start', function () {
+        before('start app', function () {
+          this.app = new AppRunner(ctx1.dir)
+        })
+
+        after('stop app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.stop(done)
+        })
+
+        it('should start app', function (done) {
+          this.timeout(APP_START_STOP_TIMEOUT)
+          this.app.start(done)
+        })
+
+        it('should respond to HTTP request', function (done) {
+          request(this.app)
+            .get('/')
+            .expect('Content-Type', /text\/html/)
+            .expect(200, /<title>Express<\/title>/, done)
+        })
+
+        it('should respond with JSON under /api', function (done) {
+          request(this.app)
+            .get('/api')
+            .expect('Content-Type', /application\/json/)
+            .expect(200, { message: 'Welcome to Express' }, done)
+        })
+
+        it('should list users as JSON', function (done) {
+          request(this.app)
+            .get('/api/users')
+            .expect(200, [], done)
+        })
+
+        it('should allow other origins under /api only', function (done) {
+          const app = this.app
+
+          request(app)
+            .get('/api')
+            .expect('Access-Control-Allow-Origin', '*')
+            .expect(200, function (err) {
+              if (err) return done(err)
+              request(app)
+                .get('/')
+                .expect(200)
+                .expect(function (res) {
+                  assert.strictEqual(res.headers['access-control-allow-origin'], undefined)
+                })
+                .end(done)
+            })
+        })
+
+        it('should generate a JSON 404 under /api', function (done) {
+          request(this.app)
+            .get('/api/does_not_exist')
+            .expect('Content-Type', /application\/json/)
+            .expect(404)
+            .expect(function (res) {
+              assert.strictEqual(res.body.error, 'Not Found')
+            })
+            .end(done)
+        })
+
+        it('should generate a JSON error for an invalid body under /api', function (done) {
+          request(this.app)
+            .post('/api/users')
+            .set('Content-Type', 'application/json')
+            .send('{')
+            .expect('Content-Type', /application\/json/)
+            .expect(400, done)
+        })
+
+        it('should generate an HTML 404 for pages', function (done) {
+          request(this.app)
+            .get('/does_not_exist')
+            .expect('Content-Type', /text\/html/)
+            .expect(404, /<h1>Not Found<\/h1>/, done)
+        })
+      })
+
+      describe('with --ts --session --csrf', function () {
+        const ctx2 = setupTestEnvironment('api with view ts session csrf')
+
+        it('should create a web app with an API', function (done) {
+          run(ctx2.dir, ['--api', '--view=pug', '--ts', '--cors', '--session', '--csrf'], function (err, stdout) {
+            if (err) return done(err)
+            ctx2.files = utils.parseCreatedFiles(stdout, ctx2.dir)
+            assert.notStrictEqual(ctx2.files.indexOf('routes/api.ts'), -1)
+            assert.notStrictEqual(ctx2.files.indexOf('csrf.ts'), -1)
+            done()
+          })
+        })
+
+        it('should have installable dependencies', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          install(ctx2.dir, done)
+        })
+
+        it('should pass type checking', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          runScript(ctx2.dir, 'typecheck', done)
+        })
+
+        it('should pass its tests', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          runScript(ctx2.dir, 'test', done)
+        })
+      })
+
+      describe('with --cors-scope=all', function () {
+        const ctx5 = setupTestEnvironment('api with view cors scope all')
+
+        it('should allow other origins to call the whole app', function (done) {
+          run(ctx5.dir, ['--api', '--view=pug', '--cors', '--cors-scope=all'], function (err) {
+            if (err) return done(err)
+            const contents = fs.readFileSync(path.resolve(ctx5.dir, 'app.js'), 'utf8')
+            assert.ok(/^app\.use\(cors\(\{$/m.test(contents))
+            assert.ok(!/^app\.use\('\/api', cors\(/m.test(contents))
+            done()
+          })
+        })
+      })
+
+      describe('with --csrf-scope=pages', function () {
+        const ctx6 = setupTestEnvironment('api with view csrf scope pages')
+
+        it('should create a web app with an API', function (done) {
+          run(ctx6.dir, ['--api', '--view=ejs', '--ts', '--session', '--csrf', '--csrf-scope=pages', '--uploads'], function (err) {
+            done(err)
+          })
+        })
+
+        it('should skip CSRF protection for the API and uploads', function () {
+          const contents = fs.readFileSync(path.resolve(ctx6.dir, 'csrf.ts'), 'utf8')
+          assert.ok(/^ {2}skipCsrfProtection: \(req\) => req\.path === '\/uploads' \|\| \/\^\\\/api\(\\\/\|\$\)\/i\.test\(req\.path\)$/m.test(contents))
+        })
+
+        it('should have installable dependencies', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          install(ctx6.dir, done)
+        })
+
+        it('should pass type checking', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          runScript(ctx6.dir, 'typecheck', done)
+        })
+
+        it('should pass its tests', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          runScript(ctx6.dir, 'test', done)
+        })
+      })
+
+      describe('with an unsupported scope', function () {
+        const ctx7 = setupTestEnvironment('api with view unsupported scope')
+
+        it('should exit with code 1 for --cors-scope', function (done) {
+          runRaw(ctx7.dir, ['--api', '--view=pug', '--cors', '--cors-scope=pages'], function (err, code, stdout, stderr) {
+            if (err) return done(err)
+            assert.strictEqual(code, 1)
+            assert.ok(/error: unsupported CORS scope `pages'/.test(stderr))
+            done()
+          })
+        })
+
+        it('should exit with code 1 for --csrf-scope', function (done) {
+          runRaw(ctx7.dir, ['--api', '--view=pug', '--session', '--csrf', '--csrf-scope=api'], function (err, code, stdout, stderr) {
+            if (err) return done(err)
+            assert.strictEqual(code, 1)
+            assert.ok(/error: unsupported CSRF scope `api'/.test(stderr))
+            done()
+          })
+        })
+
+        it('should exit with code 1 for a scope without an argument', function (done) {
+          runRaw(ctx7.dir, ['--api', '--view=pug', '--cors', '--cors-scope'], function (err, code, stdout, stderr) {
+            if (err) return done(err)
+            assert.strictEqual(code, 1)
+            assert.ok(/error: option `--cors-scope <scope>' argument missing/.test(stderr))
+            done()
+          })
+        })
+      })
+
+      describe('with a scope for another kind of app', function () {
+        const ctx8 = setupTestEnvironment('scope without api with view')
+
+        it('should exit with code 1 for --cors-scope without --api', function (done) {
+          runRaw(ctx8.dir, ['--cors', '--cors-scope=all'], function (err, code, stdout, stderr) {
+            if (err) return done(err)
+            assert.strictEqual(code, 1)
+            assert.ok(/error: option `--cors-scope' requires `--cors', `--api' and `--view'/.test(stderr))
+            done()
+          })
+        })
+
+        it('should exit with code 1 for --csrf-scope without --csrf', function (done) {
+          runRaw(ctx8.dir, ['--api', '--view=pug', '--csrf-scope=pages'], function (err, code, stdout, stderr) {
+            if (err) return done(err)
+            assert.strictEqual(code, 1)
+            assert.ok(/error: option `--csrf-scope' requires `--csrf', `--api' and `--view'/.test(stderr))
+            done()
+          })
+        })
+      })
+
+      describe('with --cjs', function () {
+        const ctx3 = setupTestEnvironment('api with view cjs')
+
+        it('should create a web app with an API', function (done) {
+          run(ctx3.dir, ['--api', '--view=hbs', '--cjs'], function (err) {
+            done(err)
+          })
+        })
+
+        it('should use require in the API router', function () {
+          const contents = fs.readFileSync(path.resolve(ctx3.dir, 'routes/api.js'), 'utf8')
+          assert.ok(/^const express = require\('express'\);$/m.test(contents))
+          assert.ok(/^module\.exports = router;$/m.test(contents))
+        })
+
+        it('should have installable dependencies', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          install(ctx3.dir, done)
+        })
+
+        it('should pass its tests', function (done) {
+          this.timeout(INSTALL_TIMEOUT)
+          runScript(ctx3.dir, 'test', done)
+        })
+      })
+    })
+
+    describe('with --no-view', function () {
+      const ctx4 = setupTestEnvironment('api with no view')
+
+      it('should create a JSON API', function (done) {
+        run(ctx4.dir, ['--api', '--no-view'], function (err, stdout) {
+          if (err) return done(err)
+          const files = utils.parseCreatedFiles(stdout, ctx4.dir)
+          assert.strictEqual(files.length, 12)
+          assert.strictEqual(files.indexOf('routes/api.js'), -1)
           done()
         })
       })

@@ -8,12 +8,14 @@ files with `--api`). Add more with:
 - `--cookies`: [cookie-parser](https://github.com/expressjs/cookie-parser), for reading `req.cookies`
 - `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins. Any origin is
   allowed by default; set `CORS_ORIGIN` (see `.env.example`) to a comma-separated list of origins to
-  allow only your front ends.
+  allow only your front ends. In a web app with a JSON API (`--api --view=<engine>`), it is added to
+  `/api` only, so other origins can call the API but not read the pages, unless you choose the whole
+  app with `--cors-scope=all`.
 - `--rate-limit`: [express-rate-limit](https://express-rate-limit.mintlify.app/), limiting each client
   to 100 requests every 15 minutes, with `RateLimit` headers and `429 Too Many Requests` responses
   past the limit. Change the limit with `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`. It comes after the
   static files, so only app routes count, and `/health` is never limited.
-- `--session` (web apps only): [express-session](https://github.com/expressjs/session), for
+- `--session` (not for JSON APIs without views): [express-session](https://github.com/expressjs/session), for
   `req.session`. Set `SESSION_SECRET` to a long random string; the app refuses to start in production
   without one. The session cookie is `SameSite=Lax`, and `Secure` over HTTPS. Sessions are kept in
   memory, which loses them on restart and does not suit more than one process, so add a
@@ -37,6 +39,12 @@ files with `--api`). Add more with:
   const token = document.querySelector('meta[name="csrf-token"]').content;
   await fetch('/users/new', { method: 'POST', headers: { 'x-csrf-token': token }, body: new URLSearchParams({ name: 'Ada' }) });
   ```
+
+  In a web app with a JSON API (`--api --view=<engine>`), the routes under `/api` are protected too, so
+  the pages send the header with their API requests, and a request without the token gets a JSON `403`.
+  `--csrf-scope=pages` leaves `/api` out instead, for an API that other clients call. Its routes then
+  must not trust the session cookie, as any site could make a visitor's browser send it: authenticate
+  them another way, such as a token in an `Authorization` header.
 
 - `--uploads`: [multer](https://github.com/expressjs/multer) and a `POST /uploads` route that takes one
   file in a `file` field, with a form at `GET /uploads` in apps with views (JSON APIs and `--no-view`

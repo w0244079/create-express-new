@@ -26,7 +26,7 @@ $ pnpm create express-new@latest
 `npm create express-new@latest` starts the same wizard. It asks for:
 
 - the project directory (`.` for the current directory)
-- a web app or a JSON API, and the view engine
+- a web app, a JSON API or a web app with a JSON API, and the view engine
 - the language: JavaScript, TypeScript or CommonJS
 - optional middleware, and CSRF protection with sessions
 - the request logger
@@ -122,7 +122,40 @@ client errors include their message, server errors only say `Internal Server Err
 and development adds the stack trace. Express runs in development mode unless `NODE_ENV` is set, so
 set `NODE_ENV=production` when you deploy.
 
-`--api` works with `--cjs`, `--ts` and the optional middleware, but not with `--view`.
+`--api` works with `--cjs`, `--ts` and the optional middleware, except `--session`.
+
+### Web apps with a JSON API
+
+`--api` with a view engine, such as `--api --view=pug`, generates a web app that has a JSON API too:
+everything a web app has, and a `routes/api.js` router mounted at `/api`.
+
+```
+my-app
+├── app.js            # the web app, with JSON errors under /api
+├── routes/
+│   ├── api.js        # JSON routes: GET /api and GET /api/users
+│   ├── index.js      # the home page
+│   └── users.js
+├── views/
+└── ...
+```
+
+Every error of a request under `/api` is JSON, in the same shape as a JSON API's: the 404 of an
+unknown route, an error a route throws, and the errors of the middleware before the routes, such as a
+request body that is not valid JSON. Every other error renders the `error` view.
+
+With `--cors` and `--csrf`, you choose which routes they apply to:
+
+- `--cors-scope=api` (default) lets other origins call the API only, not read the pages;
+  `--cors-scope=all` lets them call the whole app.
+- `--csrf-scope=all` (default) requires the CSRF token under `/api` too, for an API your own pages
+  call; `--csrf-scope=pages` leaves the API out, for an API other clients call without the session
+  cookie.
+
+The wizard asks both.
+
+The view engine has to be given, as `--api` alone is a JSON API without views: use `--view=pug` for
+the default one. `--api` does not add an API to a `--no-view` app.
 
 ### Module formats
 
@@ -158,7 +191,8 @@ files with `--api`). Add more with:
 - `--cors`: [cors](https://github.com/expressjs/cors), allowing requests from other origins
 - `--rate-limit`: [express-rate-limit](https://express-rate-limit.mintlify.app/), limiting each client
   to 100 requests every 15 minutes
-- `--session` (web apps only): [express-session](https://github.com/expressjs/session), for `req.session`
+- `--session` (not for JSON APIs without views): [express-session](https://github.com/expressjs/session),
+  for `req.session`
 - `--csrf` (with `--session` and a view engine): [csrf-sync](https://github.com/Psifi-Solutions/csrf-sync)
   CSRF protection for forms
 - `--uploads`: [multer](https://github.com/expressjs/multer) and a `POST /uploads` route that takes one
@@ -221,15 +255,22 @@ support TypeScript 7 yet, these apps use TypeScript 6.
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
         --no-view        use static html instead of view engine
         --api            generate a JSON API, without views or static files
+                         (with --view, a web app with a JSON API at /api)
         --cjs            generate CommonJS modules instead of ES modules
         --ts             generate TypeScript, run directly by Node.js
         --helmet         add helmet middleware for security headers
         --compression    add compression middleware for gzip/brotli responses
         --cookies        add cookie-parser middleware
         --cors           add cors middleware for cross-origin requests
+        --cors-scope <scope>
+                         with --api and --view, the routes other origins can
+                         call (api|all) (defaults to api)
         --rate-limit     add express-rate-limit to limit requests per client
-        --session        add express-session for sessions (not with --api)
+        --session        add express-session for sessions (not with --api alone)
         --csrf           add CSRF protection for forms (needs --session)
+        --csrf-scope <scope>
+                         with --api and --view, the routes that need a CSRF
+                         token (all|pages) (defaults to all)
         --uploads        add multer and an upload route at /uploads
         --logger <name>  request logger (morgan|pino) (defaults to morgan)
         --docker         add a Dockerfile for a production image
