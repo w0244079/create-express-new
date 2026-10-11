@@ -34,3 +34,6 @@ token is needed.
 The workflow checks that the tag matches `package.json` and has a changelog entry, then runs lint
 and the tests before publishing. It then creates the GitHub release for the tag, with the changelog
 entry as its notes.
+
+Pushing the tag runs only the `publish` workflow. Pushing the release commit to `main` along with it
+runs the workflows of every commit on `main` too: `ci`, `CodeQL` and `Scorecard`.

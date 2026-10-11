@@ -1,8 +1,16 @@
 name: ci
 
+# Pull requests, and the commits that reach main. Not every push: a branch
+# with a pull request would run twice, and a version tag would run the tests
+# that the publish workflow already runs before publishing. Run it by hand
+# for a branch without a pull request.
+
 on:
-- pull_request
-- push
+  pull_request:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
 
 permissions:
   contents: read
