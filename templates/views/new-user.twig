@@ -2,7 +2,7 @@
 
 {% block body %}
   <h1>{{ title|e }}</h1>
-  {% if added %}<p>Added {{ added|e }}</p>{% endif %}
+  {% if added %}<p class="notice">Added {{ added|e }}</p>{% endif %}
   {% if error %}<p class="error">{{ error|e }}</p>{% endif %}
   <form method="post" action="/users/new">
     @csrf

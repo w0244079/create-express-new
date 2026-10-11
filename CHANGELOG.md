@@ -16,6 +16,12 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- A new look for the pages of web apps, from a new starter stylesheet: a header with links to the home
+  and users pages, a centred column, a table of users, and styled forms, messages and error page. The
+  colours are custom properties that follow the visitor's light or dark theme, and the pages set a
+  language, character set and viewport. The static page of `--no-view` apps and the `style.scss` of
+  `--sass` apps have it too
+
 - A web app with a JSON API (`--api` with a view engine) has its API routers in a `routes/api` folder,
   apart from the routers of the pages: `routes/api/index.js`, mounted at `/api`, and
   `routes/api/users.js` for `/api/users`, instead of one `routes/api.js`. The URLs are the same.

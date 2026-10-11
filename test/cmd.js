@@ -1205,7 +1205,7 @@ describe('express(1)', function () {
         request(this.app)
           .get('/stylesheets/style.css')
           .expect('Content-Type', /text\/css/)
-          .expect(200, /^a \{\n {2}color: #00B7FF;\n\}$/m, done)
+          .expect(200, /^nav a:hover \{\n {2}color: var\(--text\);\n\}$/m, done)
       })
     })
 

@@ -1,5 +1,5 @@
 <h1>{{title}}</h1>
-{{#if added}}<p>Added {{added}}</p>{{/if}}
+{{#if added}}<p class="notice">Added {{added}}</p>{{/if}}
 {{#if error}}<p class="error">{{error}}</p>{{/if}}
 <form method="post" action="/users/new">
   @csrf

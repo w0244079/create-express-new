@@ -1,12 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="/stylesheets/style.css">
   </head>
   <body>
-    <h1><%= title %></h1>
-    <p>Welcome to <%= title %></p>
-    <p>Edit <code>views/index.ejs</code> to change this page, or see the sample <a href="/users">users page</a>.</p>
+    <header>
+      <nav>
+        <a class="brand" href="/">Express</a>
+        <a href="/">Home</a>
+        <a href="/users">Users</a>
+      </nav>
+    </header>
+    <main>
+      <h1><%= title %></h1>
+      <p class="lead">Welcome to <%= title %></p>
+      <p>Edit <code>views/index.ejs</code> to change this page, or see the sample <a href="/users">users page</a>.</p>
+    </main>
   </body>
 </html>
