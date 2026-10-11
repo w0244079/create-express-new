@@ -1,0 +1,9 @@
+extends layout
+
+block content
+  h1= title
+  ul
+    each user in users
+      li #{user.name} (#{user.email})
+  p
+    a(href='/') Home

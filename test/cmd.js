@@ -34,7 +34,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stdout = stdout
         ctx.warnings = warnings
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -176,7 +176,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx0.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 19)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx0.dir).length, 20)
           done()
         })
       })
@@ -196,7 +196,7 @@ describe('express(1)', function () {
       it('should create basic app', function (done) {
         run(ctx1.dir, [], function (err, output) {
           if (err) return done(err)
-          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 19)
+          assert.strictEqual(utils.parseCreatedFiles(output, ctx1.dir).length, 20)
           done()
         })
       })
@@ -251,7 +251,7 @@ describe('express(1)', function () {
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
         ctx.stderr = stderr
         ctx.stdout = stdout
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         done()
       })
     })
@@ -560,7 +560,7 @@ describe('express(1)', function () {
         run(ctx1.dir, ['--api', '--view', 'ejs', '--cors'], function (err, stdout) {
           if (err) return done(err)
           ctx1.files = utils.parseCreatedFiles(stdout, ctx1.dir)
-          assert.strictEqual(ctx1.files.length, 19)
+          assert.strictEqual(ctx1.files.length, 22)
           done()
         })
       })
@@ -568,12 +568,14 @@ describe('express(1)', function () {
       it('should have views, public files and an API router', function () {
         assert.notStrictEqual(ctx1.files.indexOf('views/index.ejs'), -1)
         assert.notStrictEqual(ctx1.files.indexOf('public/stylesheets/style.css'), -1)
-        assert.notStrictEqual(ctx1.files.indexOf('routes/api.js'), -1)
+        assert.notStrictEqual(ctx1.files.indexOf('routes/api/index.js'), -1)
+        assert.notStrictEqual(ctx1.files.indexOf('routes/api/users.js'), -1)
+        assert.strictEqual(ctx1.files.indexOf('routes/api.js'), -1)
       })
 
       it('should mount the API router at /api', function () {
         const contents = fs.readFileSync(path.resolve(ctx1.dir, 'app.js'), 'utf8')
-        assert.ok(/^import apiRouter from '\.\/routes\/api\.js';$/m.test(contents))
+        assert.ok(/^import apiRouter from '\.\/routes\/api\/index\.js';$/m.test(contents))
         assert.ok(/^app\.use\('\/api', apiRouter\);$/m.test(contents))
       })
 
@@ -689,7 +691,8 @@ describe('express(1)', function () {
           run(ctx2.dir, ['--api', '--view=pug', '--ts', '--cors', '--session', '--csrf'], function (err, stdout) {
             if (err) return done(err)
             ctx2.files = utils.parseCreatedFiles(stdout, ctx2.dir)
-            assert.notStrictEqual(ctx2.files.indexOf('routes/api.ts'), -1)
+            assert.notStrictEqual(ctx2.files.indexOf('routes/api/index.ts'), -1)
+            assert.notStrictEqual(ctx2.files.indexOf('routes/api/users.ts'), -1)
             assert.notStrictEqual(ctx2.files.indexOf('csrf.ts'), -1)
             done()
           })
@@ -818,8 +821,10 @@ describe('express(1)', function () {
         })
 
         it('should use require in the API router', function () {
-          const contents = fs.readFileSync(path.resolve(ctx3.dir, 'routes/api.js'), 'utf8')
+          const contents = fs.readFileSync(path.resolve(ctx3.dir, 'routes/api/index.js'), 'utf8')
           assert.ok(/^const express = require\('express'\);$/m.test(contents))
+          assert.ok(/^const usersRouter = require\('\.\/users\.js'\);$/m.test(contents))
+          assert.ok(/^router\.use\('\/users', usersRouter\);$/m.test(contents))
           assert.ok(/^module\.exports = router;$/m.test(contents))
         })
 
@@ -843,7 +848,7 @@ describe('express(1)', function () {
           if (err) return done(err)
           const files = utils.parseCreatedFiles(stdout, ctx4.dir)
           assert.strictEqual(files.length, 12)
-          assert.strictEqual(files.indexOf('routes/api.js'), -1)
+          assert.strictEqual(files.indexOf('routes/api/index.js'), -1)
           done()
         })
       })
@@ -857,7 +862,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cjs'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -944,7 +949,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--compression'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -998,7 +1003,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cookies'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -1024,7 +1029,7 @@ describe('express(1)', function () {
       // echo the parsed cookies from the users route
       const users = path.resolve(ctx.dir, 'routes/users.js')
       const contents = fs.readFileSync(users, 'utf8')
-      fs.writeFileSync(users, contents.replace("res.send('respond with a resource')", 'res.json(req.cookies)'))
+      fs.writeFileSync(users, contents.replace("res.render('users', { title: 'Users', users })", 'res.json(req.cookies)'))
 
       const file = path.resolve(ctx.dir, 'app.js')
       return import(url.pathToFileURL(file).href).then(function (mod) {
@@ -1043,7 +1048,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--lint'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         assert.notStrictEqual(ctx.files.indexOf('eslint.config.js'), -1)
         done()
       })
@@ -1131,7 +1136,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--sass', '--docker'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 21)
+        assert.strictEqual(ctx.files.length, 22)
         done()
       })
     })
@@ -1268,7 +1273,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--no-git'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
+        assert.strictEqual(ctx.files.length, 19, 'should have 19 files')
         assert.strictEqual(ctx.files.indexOf('.gitignore'), -1, 'should not have .gitignore file')
         done()
       })
@@ -1292,7 +1297,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--cors'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -1347,7 +1352,7 @@ describe('express(1)', function () {
     it('should create basic app', function (done) {
       run(ctx.dir, ['--rate-limit'], function (err, stdout) {
         if (err) return done(err)
-        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 19)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 20)
         done()
       })
     })
@@ -1422,7 +1427,7 @@ describe('express(1)', function () {
     it('should create basic app', function (done) {
       run(ctx.dir, ['--session'], function (err, stdout) {
         if (err) return done(err)
-        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 19)
+        assert.strictEqual(utils.parseCreatedFiles(stdout, ctx.dir).length, 20)
         done()
       })
     })
@@ -1508,7 +1513,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--session', '--csrf'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 21)
+        assert.strictEqual(ctx.files.length, 22)
         done()
       })
     })
@@ -1649,7 +1654,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--uploads', '--docker'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 23)
+        assert.strictEqual(ctx.files.length, 24)
         done()
       })
     })
@@ -1978,7 +1983,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--docker'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 21)
+        assert.strictEqual(ctx.files.length, 22)
         done()
       })
     })
@@ -2052,7 +2057,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--helmet'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 19)
+        assert.strictEqual(ctx.files.length, 20)
         done()
       })
     })
@@ -2256,7 +2261,7 @@ describe('express(1)', function () {
           ctx.stdout = stdout
           const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
           assert.deepStrictEqual(pkg.devEngines.packageManager, { name: 'npm', version: '>=12', onFail: 'error' })
-          assert.strictEqual(ctx.files.length, 21)
+          assert.strictEqual(ctx.files.length, 22)
           done()
         })
       })
@@ -2423,7 +2428,7 @@ describe('express(1)', function () {
       run(ctx.dir, ['--ts'], function (err, stdout) {
         if (err) return done(err)
         ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-        assert.strictEqual(ctx.files.length, 20)
+        assert.strictEqual(ctx.files.length, 21)
         done()
       })
     })
@@ -2631,7 +2636,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'ejs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 18, 'should have 18 files')
+          assert.strictEqual(ctx.files.length, 19, 'should have 19 files')
           done()
         })
       })
@@ -2645,6 +2650,7 @@ describe('express(1)', function () {
       it('should have ejs templates', function () {
         assert.notStrictEqual(ctx.files.indexOf('views/error.ejs'), -1, 'should have views/error.ejs file')
         assert.notStrictEqual(ctx.files.indexOf('views/index.ejs'), -1, 'should have views/index.ejs file')
+        assert.notStrictEqual(ctx.files.indexOf('views/users.ejs'), -1, 'should have views/users.ejs file')
       })
 
       it('should have ejs in package dependencies', function () {
@@ -2695,7 +2701,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'hbs'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 19)
+          assert.strictEqual(ctx.files.length, 20)
           done()
         })
       })
@@ -2717,6 +2723,7 @@ describe('express(1)', function () {
         assert.notStrictEqual(ctx.files.indexOf('views/error.hbs'), -1)
         assert.notStrictEqual(ctx.files.indexOf('views/index.hbs'), -1)
         assert.notStrictEqual(ctx.files.indexOf('views/layout.hbs'), -1)
+        assert.notStrictEqual(ctx.files.indexOf('views/users.hbs'), -1)
       })
 
       it('should have installable dependencies', function (done) {
@@ -2760,7 +2767,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'pug'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 19)
+          assert.strictEqual(ctx.files.length, 20)
           done()
         })
       })
@@ -2782,6 +2789,7 @@ describe('express(1)', function () {
         assert.notStrictEqual(ctx.files.indexOf('views/error.pug'), -1)
         assert.notStrictEqual(ctx.files.indexOf('views/index.pug'), -1)
         assert.notStrictEqual(ctx.files.indexOf('views/layout.pug'), -1)
+        assert.notStrictEqual(ctx.files.indexOf('views/users.pug'), -1)
       })
 
       it('should have installable dependencies', function (done) {
@@ -2825,7 +2833,7 @@ describe('express(1)', function () {
         run(ctx.dir, ['--view', 'twig'], function (err, stdout) {
           if (err) return done(err)
           ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
-          assert.strictEqual(ctx.files.length, 19)
+          assert.strictEqual(ctx.files.length, 20)
           done()
         })
       })
@@ -2847,6 +2855,7 @@ describe('express(1)', function () {
         assert.notStrictEqual(ctx.files.indexOf('views/error.twig'), -1)
         assert.notStrictEqual(ctx.files.indexOf('views/index.twig'), -1)
         assert.notStrictEqual(ctx.files.indexOf('views/layout.twig'), -1)
+        assert.notStrictEqual(ctx.files.indexOf('views/users.twig'), -1)
       })
 
       it('should have installable dependencies', function (done) {

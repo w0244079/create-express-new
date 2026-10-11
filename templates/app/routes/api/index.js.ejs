@@ -1,7 +1,11 @@
 <% if (esm) { -%>
 import express from 'express';
+
+import usersRouter from './users.<%- ext %>';
 <% } else { -%>
 const express = require('express');
+
+const usersRouter = require('./users.<%- ext %>');
 <% } -%>
 
 const router = express.Router();
@@ -14,10 +18,8 @@ router.get('/', (req, res) => {
   res.json({ message: 'Welcome to Express' });
 });
 
-/* GET users listing. */
-router.get('/users', (req, res) => {
-  res.json([]);
-});
+// the routers of the API's resources, one file each
+router.use('/users', usersRouter);
 
 <% if (esm) { -%>
 export default router;
