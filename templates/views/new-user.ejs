@@ -1,18 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="/stylesheets/style.css">
   </head>
   <body>
-    <h1><%= title %></h1>
-    <% if (locals.added) { %><p>Added <%= added %></p><% } %>
-    <% if (locals.error) { %><p class="error"><%= error %></p><% } %>
-    <form method="post" action="/users/new">
-      @csrf
-      <label for="name">Name</label>
-      <input id="name" type="text" name="name" value="<%= locals.name %>">
-      <button type="submit">Add user</button>
-    </form>
+    <header>
+      <nav>
+        <a class="brand" href="/">Express</a>
+        <a href="/">Home</a>
+        <a href="/users">Users</a>
+      </nav>
+    </header>
+    <main>
+      <h1><%= title %></h1>
+      <% if (locals.added) { %><p class="notice">Added <%= added %></p><% } %>
+      <% if (locals.error) { %><p class="error"><%= error %></p><% } %>
+      <form method="post" action="/users/new">
+        @csrf
+        <label for="name">Name</label>
+        <input id="name" type="text" name="name" value="<%= locals.name %>">
+        <button type="submit">Add user</button>
+      </form>
+    </main>
   </body>
 </html>

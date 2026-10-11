@@ -188,7 +188,12 @@ describe('app', () => {
   it('responds to GET /users', async () => {
     const res = await fetch(`${baseUrl}/users`);
     assert.strictEqual(res.status, 200);
+<% if (view) { -%>
+    assert.match(res.headers.get('content-type') ?? '', /text\/html/);
+    assert.match(await res.text(), /Ada Lovelace/);
+<% } else { -%>
     assert.strictEqual(await res.text(), 'respond with a resource');
+<% } -%>
   });
 
   it('responds with 404 for unknown routes', async () => {

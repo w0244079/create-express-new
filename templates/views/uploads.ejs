@@ -1,16 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="/stylesheets/style.css">
   </head>
   <body>
-    <h1><%= title %></h1>
-    <% if (locals.uploaded) { %><p>Uploaded <%= uploaded %></p><% } %>
-    <form method="post" action="/uploads" enctype="multipart/form-data">
-      @csrf
-      <input type="file" name="file">
-      <button type="submit">Upload</button>
-    </form>
+    <header>
+      <nav>
+        <a class="brand" href="/">Express</a>
+        <a href="/">Home</a>
+        <a href="/users">Users</a>
+      </nav>
+    </header>
+    <main>
+      <h1><%= title %></h1>
+      <% if (locals.uploaded) { %><p class="notice">Uploaded <%= uploaded %></p><% } %>
+      <form method="post" action="/uploads" enctype="multipart/form-data">
+        @csrf
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+      </form>
+    </main>
   </body>
 </html>

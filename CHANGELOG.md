@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-11
+
+### Added
+
+- A sample users page in apps with a view engine: `GET /users` renders a `users` view listing two
+  sample users, in place of the text `respond with a resource`, and the home page links to it and
+  names the view to edit
+
+### Changed
+
+- A new look for the pages of web apps, from a new starter stylesheet: a header with links to the home
+  and users pages, a centred column, a table of users, and styled forms, messages and error page. The
+  colours are custom properties that follow the visitor's light or dark theme, and the pages set a
+  language, character set and viewport. The static page of `--no-view` apps and the `style.scss` of
+  `--sass` apps have it too
+
+- A web app with a JSON API (`--api` with a view engine) has its API routers in a `routes/api` folder,
+  apart from the routers of the pages: `routes/api/index.js`, mounted at `/api`, and
+  `routes/api/users.js` for `/api/users`, instead of one `routes/api.js`. The URLs are the same.
+  Creating the app again in the folder of an older one reports `routes/api.js` as no longer used
+
 ## [1.3.0] - 2026-10-11
 
 ### Added
@@ -145,7 +166,8 @@ the full list and a table for migrating commands.
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - The `debug` package and `DEBUG=...` start instructions
 
-[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/w0244079/create-express-new/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/w0244079/create-express-new/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/w0244079/create-express-new/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/w0244079/create-express-new/compare/v1.0.0...v1.1.0

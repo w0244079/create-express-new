@@ -3,7 +3,7 @@ extends layout
 block content
   h1= title
   if added
-    p Added #{added}
+    p.notice Added #{added}
   if error
     p.error= error
   form(method='post', action='/users/new')

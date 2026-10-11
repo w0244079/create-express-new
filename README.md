@@ -91,7 +91,7 @@ my-app
 ├── public/           # static files, including stylesheets/style.css
 ├── routes/           # index.js and users.js routers
 ├── test/app.test.js  # node:test tests for the app
-└── views/            # error, index and layout templates (pug by default)
+└── views/            # error, index, layout and users templates (pug by default)
 ```
 
 Every app has a `GET /health` endpoint that responds with `{ "status": "ok" }`, for load balancers,
@@ -127,18 +127,23 @@ set `NODE_ENV=production` when you deploy.
 ### Web apps with a JSON API
 
 `--api` with a view engine, such as `--api --view=pug`, generates a web app that has a JSON API too:
-everything a web app has, and a `routes/api.js` router mounted at `/api`.
+everything a web app has, and a `routes/api` folder of routers mounted at `/api`, apart from the
+routers of the pages.
 
 ```
 my-app
 ├── app.js            # the web app, with JSON errors under /api
 ├── routes/
-│   ├── api.js        # JSON routes: GET /api and GET /api/users
+│   ├── api/
+│   │   ├── index.js  # JSON routes: GET /api, and the routers of the API's resources
+│   │   └── users.js  # GET /api/users
 │   ├── index.js      # the home page
-│   └── users.js
+│   └── users.js      # the users pages
 ├── views/
 └── ...
 ```
+
+To add a resource to the API, add its router to `routes/api` and mount it in `routes/api/index.js`.
 
 Every error of a request under `/api` is JSON, in the same shape as a JSON API's: the 404 of an
 unknown route, an error a route throws, and the errors of the middleware before the routes, such as a

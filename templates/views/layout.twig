@@ -1,10 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title|e }}</title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="/stylesheets/style.css">
   </head>
   <body>
-    {% block body %}{% endblock %}
+    <header>
+      <nav>
+        <a class="brand" href="/">Express</a>
+        <a href="/">Home</a>
+        <a href="/users">Users</a>
+      </nav>
+    </header>
+    <main>
+      {% block body %}{% endblock %}
+    </main>
   </body>
 </html>

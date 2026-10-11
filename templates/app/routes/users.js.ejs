@@ -6,10 +6,20 @@ const express = require('express');
 
 const router = express.Router();
 
+<% if (view) { -%>
+// sample users, in place of the ones of a database
+const users = [
+  { name: 'Ada Lovelace', email: 'ada@example.com' },
+  { name: 'Grace Hopper', email: 'grace@example.com' }
+];
+
+<% } -%>
 /* GET users listing. */
 router.get('/', (req, res) => {
 <% if (api) { -%>
   res.json([]);
+<% } else if (view) { -%>
+  res.render('users', { title: 'Users', users });
 <% } else { -%>
   res.send('respond with a resource');
 <% } -%>
