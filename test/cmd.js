@@ -1124,6 +1124,143 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--sass', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create basic app', function (done) {
+      run(ctx.dir, ['--sass', '--docker'], function (err, stdout) {
+        if (err) return done(err)
+        ctx.files = utils.parseCreatedFiles(stdout, ctx.dir)
+        assert.strictEqual(ctx.files.length, 21)
+        done()
+      })
+    })
+
+    it('should have a Sass stylesheet instead of a CSS one', function () {
+      assert.notStrictEqual(ctx.files.indexOf('public/stylesheets/style.scss'), -1)
+      assert.strictEqual(ctx.files.indexOf('public/stylesheets/style.css'), -1)
+    })
+
+    it('should compile the stylesheets before the app starts', function () {
+      const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx.dir, 'package.json'), 'utf8'))
+      assert.strictEqual(pkg.scripts.css, 'sass public/stylesheets:public/stylesheets')
+      assert.strictEqual(pkg.scripts['css:watch'], 'sass --watch public/stylesheets:public/stylesheets')
+      assert.strictEqual(pkg.scripts.prestart, 'pnpm css')
+      assert.strictEqual(pkg.scripts.predev, 'pnpm css')
+      assert.strictEqual(pkg.devDependencies.sass, VERSIONS.sass)
+      assert.strictEqual(pkg.dependencies.sass, undefined)
+    })
+
+    it('should ignore the compiled stylesheets', function () {
+      for (const file of ['.gitignore', '.dockerignore']) {
+        const contents = fs.readFileSync(path.resolve(ctx.dir, file), 'utf8')
+        assert.ok(/^public\/stylesheets\/\*\.css$/m.test(contents), file)
+        assert.ok(/^public\/stylesheets\/\*\.css\.map$/m.test(contents), file)
+      }
+    })
+
+    it('should not run the install script of the file watcher', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'pnpm-workspace.yaml'), 'utf8')
+      assert.ok(/^allowBuilds:\n {2}'@parcel\/watcher': false$/m.test(contents))
+    })
+
+    it('should compile the stylesheets in a stage of the image', function () {
+      const contents = fs.readFileSync(path.resolve(ctx.dir, 'Dockerfile'), 'utf8')
+      assert.ok(/^FROM dependencies AS stylesheets\n\nRUN pnpm install --frozen-lockfile\nCOPY public\/stylesheets \.\/public\/stylesheets\nRUN pnpm css$/m.test(contents))
+      assert.ok(/^COPY --chown=node:node --from=stylesheets \/app\/public\/stylesheets \.\/public\/stylesheets$/m.test(contents))
+      assert.ok(contents.indexOf('COPY --chown=node:node . .') < contents.indexOf('--from=stylesheets'))
+    })
+
+    it('should have installable dependencies', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      install(ctx.dir, done)
+    })
+
+    it('should pass its tests', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test', done)
+    })
+
+    describe('start', function () {
+      before('start app', function () {
+        this.app = new AppRunner(ctx.dir)
+      })
+
+      after('stop app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.stop(done)
+      })
+
+      it('should start app', function (done) {
+        this.timeout(APP_START_STOP_TIMEOUT)
+        this.app.start(done)
+      })
+
+      it('should respond with the compiled stylesheet', function (done) {
+        request(this.app)
+          .get('/stylesheets/style.css')
+          .expect('Content-Type', /text\/css/)
+          .expect(200, /^a \{\n {2}color: #00B7FF;\n\}$/m, done)
+      })
+    })
+
+    describe('without --sass', function () {
+      const ctx0 = setupTestEnvironment('no sass')
+
+      it('should have a CSS stylesheet and no Sass', function (done) {
+        run(ctx0.dir, ['--docker'], function (err, stdout) {
+          if (err) return done(err)
+          const files = utils.parseCreatedFiles(stdout, ctx0.dir)
+          assert.notStrictEqual(files.indexOf('public/stylesheets/style.css'), -1)
+          assert.strictEqual(files.indexOf('public/stylesheets/style.scss'), -1)
+          const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx0.dir, 'package.json'), 'utf8'))
+          assert.deepStrictEqual(Object.keys(pkg.scripts), ['start', 'test', 'dev'])
+          assert.strictEqual(pkg.devDependencies, undefined)
+          assert.ok(!/allowBuilds/.test(fs.readFileSync(path.resolve(ctx0.dir, 'pnpm-workspace.yaml'), 'utf8')))
+          assert.ok(!/stylesheets/.test(fs.readFileSync(path.resolve(ctx0.dir, 'Dockerfile'), 'utf8')))
+          done()
+        })
+      })
+    })
+
+    describe('with --pm=npm', function () {
+      const ctx1 = setupTestEnvironment('sass npm')
+
+      it('should compile the stylesheets with npm', function (done) {
+        run(ctx1.dir, ['--sass', '--docker', '--pm=npm'], function (err) {
+          if (err) return done(err)
+          const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx1.dir, 'package.json'), 'utf8'))
+          const dockerfile = fs.readFileSync(path.resolve(ctx1.dir, 'Dockerfile'), 'utf8')
+          assert.strictEqual(pkg.scripts.prestart, 'npm run css')
+          assert.strictEqual(pkg.scripts.predev, 'npm run css')
+          assert.ok(/^RUN npm ci\nCOPY public\/stylesheets \.\/public\/stylesheets\nRUN npm run css$/m.test(dockerfile))
+          done()
+        })
+      })
+    })
+
+    describe('with --api', function () {
+      const ctx2 = setupTestEnvironment('sass api')
+
+      it('should exit with code 1', function (done) {
+        runRaw(ctx2.dir, ['--sass', '--api'], function (err, code, stdout, stderr) {
+          if (err) return done(err)
+          assert.strictEqual(code, 1)
+          assert.ok(/error: option `--sass' cannot be used with `--api', unless `--view' is given too/.test(stderr))
+          done()
+        })
+      })
+
+      it('should add Sass to a web app with an API', function (done) {
+        run(ctx2.dir, ['--sass', '--api', '--view=ejs'], function (err, stdout) {
+          if (err) return done(err)
+          assert.notStrictEqual(utils.parseCreatedFiles(stdout, ctx2.dir).indexOf('public/stylesheets/style.scss'), -1)
+          done()
+        })
+      })
+    })
+  })
+
   describe('--no-git', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 

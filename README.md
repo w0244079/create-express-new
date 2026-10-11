@@ -30,7 +30,7 @@ $ pnpm create express-new@latest
 - the language: JavaScript, TypeScript or CommonJS
 - optional middleware, and CSRF protection with sessions
 - the request logger
-- extras: a Dockerfile and ESLint
+- extras: a Dockerfile, ESLint and Sass
 - a `.gitignore`
 - the [package manager](#package-manager) the app requires: pnpm, or npm
 
@@ -237,6 +237,7 @@ The image:
 - is based on `node:22-slim`, the latest release of the minimum supported Node.js version
 - installs only production dependencies, in a build stage of their own, so the package manager is
   not in the final image
+- with `--sass`, compiles the stylesheets in another build stage, so Sass is not in the final image
 - runs the app as the unprivileged `node` user with `NODE_ENV=production`
 - checks `/health` with a `HEALTHCHECK`
 - runs `node` directly, so it receives `SIGTERM` and shuts down gracefully
@@ -249,6 +250,21 @@ The image:
 `--lint` adds [ESLint](https://eslint.org/) with its recommended rules and a `lint` script. With
 `--ts` it also adds [typescript-eslint](https://typescript-eslint.io/); as typescript-eslint does not
 support TypeScript 7 yet, these apps use TypeScript 6.
+
+### Sass
+
+`--sass` adds [Sass](https://sass-lang.com/) to a web app: a `public/stylesheets/style.scss` in place
+of `style.css`, compiled to the CSS the app serves.
+
+```bash
+$ pnpm start        # compiles the stylesheets, then starts the app
+$ pnpm dev          # compiles them once, then restarts the app on change
+$ pnpm css:watch    # recompiles them on change, in a second terminal
+```
+
+Sass is a development dependency, so `pnpm start` fails where only production dependencies are
+installed: compile the stylesheets first with `pnpm css`, as the `--docker` image does.
+[Using Sass](docs/sass.md) covers this, the files it ignores and adding Sass to an existing app.
 
 ## Command Line Options
 
@@ -273,6 +289,7 @@ support TypeScript 7 yet, these apps use TypeScript 6.
                          token (all|pages) (defaults to all)
         --uploads        add multer and an upload route at /uploads
         --logger <name>  request logger (morgan|pino) (defaults to morgan)
+        --sass           add Sass, compiling .scss stylesheets (not with --api alone)
         --docker         add a Dockerfile for a production image
         --lint           add ESLint and a lint script
         --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)
@@ -289,11 +306,12 @@ support TypeScript 7 yet, these apps use TypeScript 6.
 
 This fork started from `express-generator` 4.16.1. It generates Express 5 apps as ES modules, with
 pug in place of jade, for Node.js 22.9 or newer. `--view=<engine>` replaces the `--ejs`, `--hbs` and
-`--pug` aliases, and apps use plain CSS instead of a CSS preprocessor.
+`--pug` aliases, and apps use plain CSS unless you add Sass with `--sass`; the other CSS preprocessors
+are gone.
 
 - [Changes from express-generator](docs/changes-from-express-generator.md): everything added,
   changed and removed, and a table for migrating commands
-- [Using Sass](docs/sass.md): adding Sass to a generated app
+- [Using Sass](docs/sass.md): what `--sass` adds, and adding Sass to an existing app
 
 ## Contributing
 

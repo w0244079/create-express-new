@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-11
+
+### Added
+
+- `--sass` adds Sass to a web app: a `style.scss` compiled to the CSS the app serves by a `css`
+  script that runs before `start` and `dev`, a `css:watch` script, and a stage in the `--docker`
+  image that compiles the stylesheets. The wizard offers it under Extras
+- Issue templates for bug reports and feature requests
+
 ## [1.2.0] - 2026-10-11
 
 ### Added
@@ -136,7 +145,8 @@ the full list and a table for migrating commands.
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - The `debug` package and `DEBUG=...` start instructions
 
-[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/w0244079/create-express-new/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/w0244079/create-express-new/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/w0244079/create-express-new/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/w0244079/create-express-new/releases/tag/v1.0.0

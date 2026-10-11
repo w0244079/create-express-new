@@ -43,8 +43,9 @@ This fork started from `express-generator` 4.16.1.
 ## Removed
 
 - The dust, hjs (Hogan.js), jade and vash view engines
-- CSS preprocessor support (`--css` for less, stylus, compass and sass): apps use plain CSS, which now
-  covers variables, nesting and more. See [Using Sass](sass.md) to add it yourself.
+- The `--css` option and its less, stylus and compass preprocessors: apps use plain CSS, which now
+  covers variables, nesting and more, or Sass with `--sass`, compiled by a script before the app
+  starts instead of by middleware on each request. See [Using Sass](sass.md).
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - cookie-parser from the default middleware; use `--cookies`
 - The `debug` package and `DEBUG=...` start instructions; the server logs its port on start
@@ -57,5 +58,6 @@ This fork started from `express-generator` 4.16.1.
 | `express --hbs` | `express --view=hbs` |
 | `express --pug` | `express --view=pug` |
 | `express --hogan`, `--view=hjs` | not supported; `--view=hbs` (Handlebars) is the closest alternative |
-| `express --css=sass` | plain CSS, or add Sass as shown in [Using Sass](sass.md) |
+| `express --css=sass` | `express --sass`, see [Using Sass](sass.md) |
+| `express --css=less`, `--css=stylus`, `--css=compass` | not supported; plain CSS, or `--sass` |
 | `DEBUG=my-app:* npm start` | `pnpm start` or `pnpm dev` |

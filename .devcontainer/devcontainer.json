@@ -1,9 +1,17 @@
-// The development environment: the Node.js version the publish workflow uses,
-// with the pnpm and npm versions that generated apps install, as in the ci
+// The development environment: the universal image, which has Git LFS, Docker
+// and the GitHub CLI, with the Node.js version the publish workflow uses and
+// the pnpm and npm versions that generated apps install, as in the ci
 // workflow, so that no test is skipped.
 {
   "name": "create-express-new",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+
+  // the universal image comes with other Node.js versions
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
+  },
 
   // npm 12 is for the tests that install an npm app; this repository itself
   // requires pnpm
