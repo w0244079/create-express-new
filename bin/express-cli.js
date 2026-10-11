@@ -35,6 +35,7 @@ const OPTIONS = {
   'no-view': { type: 'boolean' },
   pm: { type: 'string' },
   'rate-limit': { type: 'boolean' },
+  sass: { type: 'boolean' },
   session: { type: 'boolean' },
   ts: { type: 'boolean' },
   uploads: { type: 'boolean' },
@@ -351,6 +352,13 @@ function main (options, done) {
       return done(1)
     }
 
+    // Sass is for the stylesheets of web apps
+    if (options.sass && options.api && !options.view) {
+      usage()
+      error('option `--sass\' cannot be used with `--api\', unless `--view\' is given too')
+      return done(1)
+    }
+
     if (options.csrf && !options.session) {
       usage()
       error('option `--csrf\' requires `--session\'')
@@ -527,6 +535,7 @@ function usage () {
   console.log('                         token (all|pages) (defaults to all)')
   console.log('        --uploads        add multer and an upload route at /uploads')
   console.log('        --logger <name>  request logger (morgan|pino) (defaults to morgan)')
+  console.log('        --sass           add Sass, compiling .scss stylesheets (not with --api alone)')
   console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and a lint script')
   console.log('        --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)')

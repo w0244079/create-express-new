@@ -43,6 +43,7 @@ describe('wizard', function () {
         logger: 'morgan',
         pm: 'pnpm',
         rateLimit: false,
+        sass: false,
         session: false,
         ts: false,
         uploads: false,
@@ -199,6 +200,30 @@ describe('wizard', function () {
       assert.ok(!('csrfScope' in result.options))
       assert.ok(!result.output.includes('Other origins'))
       assert.ok(!result.output.includes('CSRF tokens for the API'))
+    })
+  })
+
+  it('should offer Sass for a web app', function () {
+    const keys = [
+      ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, // directory, web app, pug, JavaScript, middleware, morgan
+      DOWN, DOWN, ' ', ENTER, // Sass
+      ENTER, ENTER, ENTER, ENTER // .gitignore, pnpm, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.sass, true)
+      assert.strictEqual(result.options.docker, false)
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app --sass'))
+    })
+  })
+
+  it('should not offer Sass for a JSON API', function () {
+    const keys = [ENTER, DOWN, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER, ENTER]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.sass, false)
+      assert.ok(result.output.includes('ESLint'))
+      assert.ok(!result.output.includes('Sass'))
     })
   })
 
@@ -533,6 +558,10 @@ describe('toCommand', function () {
       toCommand(options({ api: true, cors: true, corsScope: 'all', session: true, csrf: true, csrfScope: 'pages' })),
       'pnpm create express-new@latest app --api --view=pug --cors --cors-scope=all --session --csrf --csrf-scope=pages'
     )
+  })
+
+  it('should include --sass', function () {
+    assert.strictEqual(toCommand(options({ sass: true, docker: true })), 'pnpm create express-new@latest app --sass --docker')
   })
 
   it('should include --keep-config', function () {

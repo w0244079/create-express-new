@@ -36,6 +36,20 @@ COPY package*.json .npmrc ./
 RUN npm ci --omit=dev
 <% } -%>
 
+<% if (sass) { -%>
+# Stylesheets are compiled in their own stage too, as Sass is a development
+# dependency, which the final image does not have.
+FROM dependencies AS stylesheets
+
+<% if (pm === 'pnpm') { -%>
+RUN pnpm install --frozen-lockfile
+<% } else { -%>
+RUN npm ci
+<% } -%>
+COPY public/stylesheets ./public/stylesheets
+RUN <%- css %>
+
+<% } -%>
 FROM node:22-slim
 
 ENV NODE_ENV=production
@@ -47,6 +61,11 @@ COPY --from=dependencies /app/node_modules ./node_modules
 # copy the app owned by the unprivileged node user, which runs it, so it can
 # read the files whatever their permissions on the build machine
 COPY --chown=node:node . .
+<% if (sass) { -%>
+
+# the stylesheets compiled above
+COPY --chown=node:node --from=stylesheets /app/public/stylesheets ./public/stylesheets
+<% } -%>
 <% if (uploads) { -%>
 
 # a folder for uploaded files that the node user can write to; files saved
