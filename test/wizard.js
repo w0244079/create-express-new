@@ -139,6 +139,69 @@ describe('wizard', function () {
     })
   })
 
+  it('should ask for a web app with a JSON API, which needs a view engine', function () {
+    const keys = [
+      ENTER, DOWN, DOWN, ENTER, // directory, web app with a JSON API
+      ENTER, ENTER, // pug, JavaScript
+      DOWN, DOWN, DOWN, DOWN, DOWN, ' ', ENTER, // express-session
+      ENTER, ENTER, // CSRF protection, for the API too
+      ENTER, ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, pnpm, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      const { options } = result
+      assert.strictEqual(options.api, true)
+      assert.strictEqual(options.view, 'pug')
+      assert.strictEqual(options.session, true)
+      assert.strictEqual(options.csrf, true)
+      assert.strictEqual(options.csrfScope, 'all')
+      assert.strictEqual(options.corsScope, undefined)
+      assert.ok(!result.output.includes('Other origins'), 'should not ask about CORS without cors')
+      assert.ok(result.output.includes('View engine'))
+      assert.ok(!result.output.includes('static HTML'), 'should not offer an app without a view engine')
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app --api --view=pug --session --csrf'))
+    })
+  })
+
+  it('should ask where CORS and CSRF protection apply in a web app with a JSON API', function () {
+    const keys = [
+      ENTER, DOWN, DOWN, ENTER, // directory, web app with a JSON API
+      DOWN, ENTER, ENTER, // ejs, JavaScript
+      DOWN, DOWN, DOWN, ' ', DOWN, DOWN, ' ', ENTER, // cors and express-session
+      DOWN, ENTER, // other origins can call the whole app
+      ENTER, // CSRF protection
+      DOWN, ENTER, // not for the API
+      ENTER, ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, pnpm, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      const { options } = result
+      assert.strictEqual(options.cors, true)
+      assert.strictEqual(options.corsScope, 'all')
+      assert.strictEqual(options.csrf, true)
+      assert.strictEqual(options.csrfScope, 'pages')
+      assert.ok(result.output.includes('pnpm create express-new@latest my-app --api --view=ejs --cors --cors-scope=all --session --csrf --csrf-scope=pages'))
+    })
+  })
+
+  it('should not ask where CORS and CSRF protection apply in a web app', function () {
+    const keys = [
+      ENTER, ENTER, ENTER, ENTER, // directory, web app, pug, JavaScript
+      DOWN, DOWN, DOWN, ' ', DOWN, DOWN, ' ', ENTER, // cors and express-session
+      ENTER, // CSRF protection
+      ENTER, ENTER, ENTER, ENTER, ENTER, ENTER // morgan, extras, .gitignore, pnpm, install, create
+    ]
+
+    return answer(keys).then(function (result) {
+      assert.strictEqual(result.options.cors, true)
+      assert.strictEqual(result.options.csrf, true)
+      assert.ok(!('corsScope' in result.options))
+      assert.ok(!('csrfScope' in result.options))
+      assert.ok(!result.output.includes('Other origins'))
+      assert.ok(!result.output.includes('CSRF tokens for the API'))
+    })
+  })
+
   it('should not ask for CSRF protection without a view engine', function () {
     const keys = [
       ENTER, ENTER, // directory, web app
@@ -454,6 +517,22 @@ describe('toCommand', function () {
 
   it('should prefer --api over the view', function () {
     assert.strictEqual(toCommand(options({ api: true, view: false })), 'pnpm create express-new@latest app --api')
+  })
+
+  it('should include the view engine of a web app with an API, the default too', function () {
+    assert.strictEqual(toCommand(options({ api: true })), 'pnpm create express-new@latest app --api --view=pug')
+    assert.strictEqual(toCommand(options({ api: true, view: 'ejs' })), 'pnpm create express-new@latest app --api --view=ejs')
+  })
+
+  it('should include where CORS and CSRF protection apply, unless the default', function () {
+    assert.strictEqual(
+      toCommand(options({ api: true, cors: true, corsScope: 'api', session: true, csrf: true, csrfScope: 'all' })),
+      'pnpm create express-new@latest app --api --view=pug --cors --session --csrf'
+    )
+    assert.strictEqual(
+      toCommand(options({ api: true, cors: true, corsScope: 'all', session: true, csrf: true, csrfScope: 'pages' })),
+      'pnpm create express-new@latest app --api --view=pug --cors --cors-scope=all --session --csrf --csrf-scope=pages'
+    )
   })
 
   it('should include --keep-config', function () {

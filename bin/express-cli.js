@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 import util from 'node:util'
-import { DEFAULT_PACKAGE_MANAGER, LOGGERS, PACKAGE_MANAGERS, VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp, scriptCommand } from '../lib/app.js'
+import { CORS_SCOPES, CSRF_SCOPES, DEFAULT_PACKAGE_MANAGER, LOGGERS, PACKAGE_MANAGERS, VIEW_ENGINES, checkDestination, createAppName, mergeLines, planApp, scriptCommand } from '../lib/app.js'
 import { CancelError } from '../lib/prompts.js'
 import { wizard } from '../lib/wizard.js'
 
@@ -19,7 +19,9 @@ const OPTIONS = {
   compression: { type: 'boolean' },
   cookies: { type: 'boolean' },
   cors: { type: 'boolean' },
+  'cors-scope': { type: 'string' },
   csrf: { type: 'boolean' },
+  'csrf-scope': { type: 'string' },
   docker: { type: 'boolean' },
   force: { type: 'boolean', short: 'f' },
   git: { type: 'boolean' },
@@ -283,6 +285,14 @@ function main (options, done) {
     usage()
     error('option `--pm <name>\' argument missing')
     done(1)
+  } else if (options.corsScope === '') {
+    usage()
+    error('option `--cors-scope <scope>\' argument missing')
+    done(1)
+  } else if (options.csrfScope === '') {
+    usage()
+    error('option `--csrf-scope <scope>\' argument missing')
+    done(1)
   } else {
     // Path
     const destinationPath = options._[0] || '.'
@@ -290,14 +300,9 @@ function main (options, done) {
     // App name
     const appName = createAppName(path.resolve(destinationPath)) || 'hello-world'
 
-    // A JSON API has no view engine
-    if (options.api) {
-      if (typeof options.view === 'string') {
-        usage()
-        error('option `--api\' cannot be used with `--view\'')
-        return done(1)
-      }
-
+    // A JSON API has no view engine, unless one is given with `--view`,
+    // for a web app with a JSON API
+    if (options.api && typeof options.view !== 'string') {
       options.view = false
     }
 
@@ -340,9 +345,9 @@ function main (options, done) {
     }
 
     // Sessions are for web apps, and CSRF protection needs them and views
-    if (options.session && options.api) {
+    if (options.session && options.api && !options.view) {
       usage()
-      error('option `--session\' cannot be used with `--api\'')
+      error('option `--session\' cannot be used with `--api\', unless `--view\' is given too')
       return done(1)
     }
 
@@ -356,6 +361,38 @@ function main (options, done) {
       usage()
       error('option `--csrf\' needs a view engine, so cannot be used with `--no-view\'')
       return done(1)
+    }
+
+    // Where CORS and CSRF protection apply is a choice only for a web app
+    // with a JSON API
+    const webApi = Boolean(options.api && options.view)
+
+    if (options.corsScope !== undefined) {
+      if (!CORS_SCOPES.includes(options.corsScope)) {
+        usage()
+        error('unsupported CORS scope `' + options.corsScope + "'")
+        return done(1)
+      }
+
+      if (!webApi || !options.cors) {
+        usage()
+        error('option `--cors-scope\' requires `--cors\', `--api\' and `--view\'')
+        return done(1)
+      }
+    }
+
+    if (options.csrfScope !== undefined) {
+      if (!CSRF_SCOPES.includes(options.csrfScope)) {
+        usage()
+        error('unsupported CSRF scope `' + options.csrfScope + "'")
+        return done(1)
+      }
+
+      if (!webApi || !options.csrf) {
+        usage()
+        error('option `--csrf-scope\' requires `--csrf\', `--api\' and `--view\'')
+        return done(1)
+      }
     }
 
     // Check the destination before writing anything
@@ -446,6 +483,8 @@ function parseOptions (argv) {
   options.git = !options['no-git']
   options.keepConfig = Boolean(options['keep-config'])
   options.rateLimit = Boolean(options['rate-limit'])
+  options.corsScope = options['cors-scope']
+  options.csrfScope = options['csrf-scope']
   options.logger ??= 'morgan'
   options.pm ??= DEFAULT_PACKAGE_MANAGER
 
@@ -470,15 +509,22 @@ function usage () {
   console.log('    -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)')
   console.log('        --no-view        use static html instead of view engine')
   console.log('        --api            generate a JSON API, without views or static files')
+  console.log('                         (with --view, a web app with a JSON API at /api)')
   console.log('        --cjs            generate CommonJS modules instead of ES modules')
   console.log('        --ts             generate TypeScript, run directly by Node.js')
   console.log('        --helmet         add helmet middleware for security headers')
   console.log('        --compression    add compression middleware for gzip/brotli responses')
   console.log('        --cookies        add cookie-parser middleware')
   console.log('        --cors           add cors middleware for cross-origin requests')
+  console.log('        --cors-scope <scope>')
+  console.log('                         with --api and --view, the routes other origins can')
+  console.log('                         call (api|all) (defaults to api)')
   console.log('        --rate-limit     add express-rate-limit to limit requests per client')
-  console.log('        --session        add express-session for sessions (not with --api)')
+  console.log('        --session        add express-session for sessions (not with --api alone)')
   console.log('        --csrf           add CSRF protection for forms (needs --session)')
+  console.log('        --csrf-scope <scope>')
+  console.log('                         with --api and --view, the routes that need a CSRF')
+  console.log('                         token (all|pages) (defaults to all)')
   console.log('        --uploads        add multer and an upload route at /uploads')
   console.log('        --logger <name>  request logger (morgan|pino) (defaults to morgan)')
   console.log('        --docker         add a Dockerfile for a production image')

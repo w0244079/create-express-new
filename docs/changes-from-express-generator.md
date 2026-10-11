@@ -6,6 +6,7 @@ This fork started from `express-generator` 4.16.1.
 
 - ES module output by default, plus `--cjs` for CommonJS and `--ts` for TypeScript
 - `--api` for JSON APIs, with JSON 404 and error responses that hide server error details in production
+- `--api` with a view engine for web apps with a JSON API at `/api`, where errors are JSON too
 - `.env` loading in the `start` and `dev` scripts, with a generated `.env.example`
 - An interactive wizard when run without arguments in a terminal, which shows the equivalent command
 - A `.gitignore` for every app (skip it with `--no-git`), rewritten for current Node.js projects

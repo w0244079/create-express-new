@@ -7,8 +7,17 @@ const { csrfSync } = require('csrf-sync');
 // CSRF protection for requests that change data, which must send the token
 // in a _csrf form field or an x-csrf-token header (GET is not checked)
 const csrf = csrfSync({
-  getTokenFromRequest: (req) => req.body?._csrf ?? req.get('x-csrf-token')<%- uploads ? ',' : '' %>
-<% if (uploads) { -%>
+  getTokenFromRequest: (req) => req.body?._csrf ?? req.get('x-csrf-token')<%- uploads || skipApi ? ',' : '' %>
+<% if (uploads && skipApi) { -%>
+  // uploads check the token themselves, as multer reads their form, and the
+  // API is not protected, so its routes must not trust the session cookie:
+  // authenticate them another way, such as a token in a header
+  skipCsrfProtection: (req) => req.path === '/uploads' || /^\/api(\/|$)/i.test(req.path)
+<% } else if (skipApi) { -%>
+  // the API is not protected, so its routes must not trust the session
+  // cookie: authenticate them another way, such as a token in a header
+  skipCsrfProtection: (req) => /^\/api(\/|$)/i.test(req.path)
+<% } else if (uploads) { -%>
   // uploads check the token themselves, as multer reads their form
   skipCsrfProtection: (req) => req.path === '/uploads'
 <% } -%>

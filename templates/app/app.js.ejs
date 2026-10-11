@@ -84,7 +84,31 @@ app.use((req, res, next) => {
   next(createError(404));
 });
 
+<% if (webApi) { -%>
+// error handler for the API, responding with JSON to every error of a
+// request under /api, including those of the middleware above
+<% if (ts) { -%>
+app.use('/api', (err: HttpError, req: Request, res: Response, next: NextFunction) => {
+<% } else { -%>
+app.use('/api', (err, req, res, next) => {
+<% } -%>
+  const status = err.status || 500;
+  const development = req.app.get('env') === 'development';
+
+  // log server errors, which are bugs, but not client errors
+  if (status >= 500) console.error(err);
+
+  // only expose client error messages, or every error in development
+  res.status(status).json({
+    error: err.expose || development ? err.message : 'Internal Server Error',
+    ...(development && { stack: err.stack })
+  });
+});
+
+// error handler for the pages
+<% } else { -%>
 // error handler
+<% } -%>
 <% if (ts) { -%>
 app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
 <% } else { -%>
