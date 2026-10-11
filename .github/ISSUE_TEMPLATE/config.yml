@@ -1,0 +1,9 @@
+# Issues start from a template, and reports that belong elsewhere get a link
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/w0244079/create-express-new/security/advisories/new
+    about: Report a vulnerability privately, not in a public issue. See SECURITY.md.
+  - name: Problem with Express itself
+    url: https://github.com/expressjs/express/issues
+    about: Report bugs in Express, not in the generator or the code it generates, to the Express project.
