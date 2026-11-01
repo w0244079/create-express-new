@@ -43,7 +43,7 @@
     "eslint": "^9.39.5",
     "fast-check": "^4.10.2",
     "mocha": "^12.0.3",
-    "neostandard": "^0.13.0",
+    "neostandard": "^0.14.1",
     "supertest": "^7.3.0",
     "tree-kill": "^1.2.2",
     "validate-npm-package-name": "^8.0.0"
