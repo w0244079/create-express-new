@@ -30,7 +30,7 @@ $ pnpm create express-new@latest
 - the language: JavaScript, TypeScript or CommonJS
 - optional middleware, and CSRF protection with sessions
 - the request logger
-- extras: a Dockerfile, ESLint and Sass
+- extras: a Dockerfile, ESLint, Sass and an app README
 - a `.gitignore`
 - the [package manager](#package-manager) the app requires: pnpm, or npm
 
@@ -256,6 +256,13 @@ The image:
 `--ts` it also adds [typescript-eslint](https://typescript-eslint.io/); as typescript-eslint does not
 support TypeScript 7 yet, these apps use TypeScript 6.
 
+### App README
+
+`--readme` adds a `README.md` with setup commands, project layout, routes, configuration and
+deployment instructions tailored to the selected language, package manager and optional features.
+It is opt-in, and available under Extras in the wizard. An existing README is listed before it is
+overwritten; use `--keep-config` to keep it instead.
+
 ### Sass
 
 `--sass` adds [Sass](https://sass-lang.com/) to a web app: a `public/stylesheets/style.scss` in place
@@ -297,13 +304,14 @@ installed: compile the stylesheets first with `pnpm css`, as the `--docker` imag
         --sass           add Sass, compiling .scss stylesheets (not with --api alone)
         --docker         add a Dockerfile for a production image
         --lint           add ESLint and a lint script
+        --readme         add a README with setup and usage instructions
         --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)
         --install        install the dependencies after creating the app
         --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
         --keep-config    keep existing config files (.env.example, Dockerfile,
                          .dockerignore, tsconfig.json, eslint.config.*,
-                         pnpm-workspace.yaml, .npmrc)
+                         pnpm-workspace.yaml, .npmrc, README.md)
         --version        output the version number
     -h, --help           output usage information
 

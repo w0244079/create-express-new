@@ -43,6 +43,7 @@ describe('wizard', function () {
         logger: 'morgan',
         pm: 'pnpm',
         rateLimit: false,
+        readme: false,
         sass: false,
         session: false,
         ts: false,
@@ -226,6 +227,24 @@ describe('wizard', function () {
       assert.ok(!result.output.includes('Sass'))
     })
   })
+
+  for (const api of [false, true]) {
+    it('should offer a README for a ' + (api ? 'JSON API' : 'web app'), function () {
+      const keys = [
+        ENTER, ...(api ? [DOWN] : []), ENTER, // directory, app kind
+        ...(!api ? [ENTER] : []), ENTER, // view if needed, JavaScript
+        ENTER, ENTER, // middleware, logger
+        DOWN, DOWN, ...(!api ? [DOWN] : []), ' ', ENTER, // README
+        ENTER, ENTER, 'n', ENTER // .gitignore, pnpm, no install, create
+      ]
+
+      return answer(keys).then(function (result) {
+        assert.strictEqual(result.options.readme, true)
+        assert.ok(result.output.includes('README'))
+        assert.ok(result.output.includes('pnpm create express-new@latest my-app ' + (api ? '--api ' : '') + '--readme'))
+      })
+    })
+  }
 
   it('should not ask for CSRF protection without a view engine', function () {
     const keys = [
@@ -562,6 +581,12 @@ describe('toCommand', function () {
 
   it('should include --sass', function () {
     assert.strictEqual(toCommand(options({ sass: true, docker: true })), 'pnpm create express-new@latest app --sass --docker')
+  })
+
+  it('should include --readme only when selected', function () {
+    assert.strictEqual(toCommand(options({ readme: true })), 'pnpm create express-new@latest app --readme')
+    assert.strictEqual(toCommand(options({ readme: true, pm: 'npm' })), 'npm create express-new@latest app -- --readme --pm=npm')
+    assert.strictEqual(toCommand(options({ readme: false })), 'pnpm create express-new@latest app')
   })
 
   it('should include --keep-config', function () {

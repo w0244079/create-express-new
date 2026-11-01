@@ -437,6 +437,53 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--readme', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create an app README when requested', function (done) {
+      run(ctx.dir, ['--readme'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(utils.parseCreatedFiles(stdout, ctx.dir).includes('README.md'))
+        const contents = fs.readFileSync(path.join(ctx.dir, 'README.md'), 'utf8')
+        const pkg = JSON.parse(fs.readFileSync(path.join(ctx.dir, 'package.json'), 'utf8'))
+        assert.ok(contents.startsWith('# ' + pkg.name + '\n'))
+        assert.ok(contents.includes('pnpm dev'))
+        done()
+      })
+    })
+
+    it('should keep an existing README with --keep-config', function (done) {
+      fs.writeFileSync(path.join(ctx.dir, 'README.md'), '# My documentation\n')
+
+      run(ctx.dir, ['--readme', '--force', '--keep-config'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(/keep.*: README\.md/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, 'README.md'), 'utf8'), '# My documentation\n')
+        done()
+      })
+    })
+
+    it('should list an existing README before overwriting it', function (done) {
+      runWithInput(ctx.dir, ['--readme'], 'n\n', function (err, code, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(code, 1)
+        assert.ok(/these existing files will be overwritten:[\s\S]*README\.md/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, 'README.md'), 'utf8'), '# My documentation\n')
+        done()
+      })
+    })
+
+    it('should overwrite an existing README when forced', function (done) {
+      run(ctx.dir, ['--readme', '--force'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(/overwrite.*: README\.md/.test(stdout))
+        const pkg = JSON.parse(fs.readFileSync(path.join(ctx.dir, 'package.json'), 'utf8'))
+        assert.ok(fs.readFileSync(path.join(ctx.dir, 'README.md'), 'utf8').startsWith('# ' + pkg.name + '\n'))
+        done()
+      })
+    })
+  })
+
   describe('--api', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -2116,6 +2163,7 @@ describe('express(1)', function () {
         const files = utils.parseCreatedFiles(stdout, ctx.dir)
         assert.strictEqual(files.length, 0)
         assert.ok(/Usage: pnpm create express-new@latest \[dir\] \[options\]/.test(stdout))
+        assert.ok(/--readme/.test(stdout))
         assert.ok(/--help/.test(stdout))
         assert.ok(/--version/.test(stdout))
         done()
