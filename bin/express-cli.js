@@ -35,6 +35,7 @@ const OPTIONS = {
   'no-view': { type: 'boolean' },
   pm: { type: 'string' },
   'rate-limit': { type: 'boolean' },
+  readme: { type: 'boolean' },
   sass: { type: 'boolean' },
   session: { type: 'boolean' },
   ts: { type: 'boolean' },
@@ -538,13 +539,14 @@ function usage () {
   console.log('        --sass           add Sass, compiling .scss stylesheets (not with --api alone)')
   console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and a lint script')
+  console.log('        --readme         add a README with setup and usage instructions')
   console.log('        --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)')
   console.log('        --install        install the dependencies after creating the app')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('        --keep-config    keep existing config files (.env.example, Dockerfile,')
   console.log('                         .dockerignore, tsconfig.json, eslint.config.*,')
-  console.log('                         pnpm-workspace.yaml, .npmrc)')
+  console.log('                         pnpm-workspace.yaml, .npmrc, README.md)')
   console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')
 }
