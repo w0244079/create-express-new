@@ -20,6 +20,7 @@ This fork started from `express-generator` 4.16.1.
 - `--readme` for setup and usage instructions tailored to the generated app
 - A `dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run by the `test` script
+- A `test:coverage` script using Node.js's built-in test coverage
 - A required package manager for every app, pnpm by default or npm with `--pm=npm`, with settings
   that delay new releases and do not run the install scripts of dependencies
 - Graceful shutdown on SIGINT and SIGTERM in `bin/www.js`

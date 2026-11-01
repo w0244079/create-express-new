@@ -66,9 +66,12 @@ Start it at `http://localhost:3000/`, and run its tests, written with the built-
 $ pnpm dev      # restarts on change
 $ pnpm start    # without restarting
 $ pnpm test
+$ pnpm test:coverage
 ```
 
-An app generated with `--pm=npm` uses `npm install`, `npm run dev`, `npm start` and `npm test`.
+`test:coverage` runs the same tests and prints Node.js's built-in coverage report; it adds no
+dependencies. An app generated with `--pm=npm` uses `npm install`, `npm run dev`, `npm start`,
+`npm test` and `npm run test:coverage`.
 
 You can also install the generator globally, which provides the `express` command:
 

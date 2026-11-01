@@ -10,6 +10,8 @@ All notable changes to this project are documented here. The format is based on
 
 - `--readme` adds an app README with setup and usage instructions tailored to the selected options.
   The wizard offers it under Extras, and `--keep-config` preserves an existing README.
+- Generated apps have a `test:coverage` script that runs `node:test` with Node.js's built-in coverage
+  report.
 
 ## [1.4.1] - 2026-11-01
 
