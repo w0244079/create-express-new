@@ -36,6 +36,7 @@ Requests are logged with morgan.
 | `<%- command('dev') %>` | Start in development, restarting on change |
 | `<%- command('start') %>` | Start without restarting |
 | `<%- command('test') %>` | Run the tests with Node.js's built-in test runner |
+| `<%- command('test:coverage') %>` | Run tests and print Node.js's built-in coverage report |
 <% if (options.ts) { -%>
 | `<%- command('typecheck') %>` | Check types with the strict `tsconfig.json`, without emitting files |
 <% } -%>

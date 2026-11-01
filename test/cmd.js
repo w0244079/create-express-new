@@ -96,6 +96,7 @@ describe('express(1)', function () {
         '  "scripts": {\n' +
         '    "start": "node --env-file-if-exists=.env ./bin/www.js",\n' +
         '    "test": "node --test",\n' +
+        '    "test:coverage": "node --experimental-test-coverage --test",\n' +
         '    "dev": "node --watch --env-file-if-exists=.env ./bin/www.js"\n' +
         '  },\n' +
         '  "engines": {\n' +
@@ -125,6 +126,11 @@ describe('express(1)', function () {
     it('should pass its tests', function (done) {
       this.timeout(INSTALL_TIMEOUT)
       runScript(ctx.dir, 'test', done)
+    })
+
+    it('should run its tests with coverage', function (done) {
+      this.timeout(INSTALL_TIMEOUT)
+      runScript(ctx.dir, 'test:coverage', done)
     })
 
     it('should export an express app from app.js', function () {
@@ -1266,7 +1272,7 @@ describe('express(1)', function () {
           assert.notStrictEqual(files.indexOf('public/stylesheets/style.css'), -1)
           assert.strictEqual(files.indexOf('public/stylesheets/style.scss'), -1)
           const pkg = JSON.parse(fs.readFileSync(path.resolve(ctx0.dir, 'package.json'), 'utf8'))
-          assert.deepStrictEqual(Object.keys(pkg.scripts), ['start', 'test', 'dev'])
+          assert.deepStrictEqual(Object.keys(pkg.scripts), ['start', 'test', 'test:coverage', 'dev'])
           assert.strictEqual(pkg.devDependencies, undefined)
           assert.ok(!/allowBuilds/.test(fs.readFileSync(path.resolve(ctx0.dir, 'pnpm-workspace.yaml'), 'utf8')))
           assert.ok(!/stylesheets/.test(fs.readFileSync(path.resolve(ctx0.dir, 'Dockerfile'), 'utf8')))
