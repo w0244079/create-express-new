@@ -32,6 +32,7 @@ describe('wizard', function () {
         compression: false,
         cookies: false,
         cors: false,
+        dependabot: false,
         docker: false,
         force: false,
         git: true,
@@ -229,6 +230,23 @@ describe('wizard', function () {
   })
 
   for (const api of [false, true]) {
+    it('should offer Dependabot for a ' + (api ? 'JSON API' : 'web app'), function () {
+      const keys = [
+        ENTER, ...(api ? [DOWN] : []), ENTER,
+        ...(!api ? [ENTER] : []), ENTER,
+        ENTER, ENTER,
+        DOWN, DOWN, DOWN, ...(!api ? [DOWN] : []), ' ', ENTER,
+        ENTER, ENTER, 'n', ENTER
+      ]
+
+      return answer(keys).then(function (result) {
+        assert.strictEqual(result.options.dependabot, true)
+        assert.strictEqual(result.options.readme, false)
+        assert.ok(result.output.includes('Dependabot'))
+        assert.ok(result.output.includes('pnpm create express-new@latest my-app ' + (api ? '--api ' : '') + '--dependabot'))
+      })
+    })
+
     it('should offer a README for a ' + (api ? 'JSON API' : 'web app'), function () {
       const keys = [
         ENTER, ...(api ? [DOWN] : []), ENTER, // directory, app kind
@@ -591,6 +609,12 @@ describe('toCommand', function () {
 
   it('should include --keep-config', function () {
     assert.strictEqual(toCommand(options({ force: true, keepConfig: true })), 'pnpm create express-new@latest app --force --keep-config')
+  })
+
+  it('should include --dependabot only when selected', function () {
+    assert.strictEqual(toCommand(options({ dependabot: true })), 'pnpm create express-new@latest app --dependabot')
+    assert.strictEqual(toCommand(options({ dependabot: true, pm: 'npm' })), 'npm create express-new@latest app -- --dependabot --pm=npm')
+    assert.strictEqual(toCommand(options({ dependabot: false })), 'pnpm create express-new@latest app')
   })
 
   it('should include the new middleware and a logger other than morgan', function () {

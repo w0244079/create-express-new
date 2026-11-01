@@ -22,6 +22,7 @@ const OPTIONS = {
   'cors-scope': { type: 'string' },
   csrf: { type: 'boolean' },
   'csrf-scope': { type: 'string' },
+  dependabot: { type: 'boolean' },
   docker: { type: 'boolean' },
   force: { type: 'boolean', short: 'f' },
   git: { type: 'boolean' },
@@ -540,13 +541,15 @@ function usage () {
   console.log('        --docker         add a Dockerfile for a production image')
   console.log('        --lint           add ESLint and a lint script')
   console.log('        --readme         add a README with setup and usage instructions')
+  console.log('        --dependabot     add Dependabot for weekly dependency updates on GitHub')
   console.log('        --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)')
   console.log('        --install        install the dependencies after creating the app')
   console.log('        --no-git         skip the .gitignore')
   console.log('    -f, --force          force on non-empty directory')
   console.log('        --keep-config    keep existing config files (.env.example, Dockerfile,')
   console.log('                         .dockerignore, tsconfig.json, eslint.config.*,')
-  console.log('                         pnpm-workspace.yaml, .npmrc, README.md)')
+  console.log('                         pnpm-workspace.yaml, .npmrc, README.md,')
+  console.log('                         .github/dependabot.yml)')
   console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')
 }

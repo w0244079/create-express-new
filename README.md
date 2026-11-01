@@ -30,7 +30,7 @@ $ pnpm create express-new@latest
 - the language: JavaScript, TypeScript or CommonJS
 - optional middleware, and CSRF protection with sessions
 - the request logger
-- extras: a Dockerfile, ESLint, Sass and an app README
+- extras: a Dockerfile, ESLint, Sass, an app README and Dependabot
 - a `.gitignore`
 - the [package manager](#package-manager) the app requires: pnpm, or npm
 
@@ -281,6 +281,16 @@ Sass is a development dependency, so `pnpm start` fails where only production de
 installed: compile the stylesheets first with `pnpm css`, as the `--docker` image does.
 [Using Sass](docs/sass.md) covers this, the files it ignores and adding Sass to an existing app.
 
+### Dependabot
+
+`--dependabot` adds `.github/dependabot.yml` for weekly dependency updates when the app is hosted on
+GitHub. It uses the `npm` ecosystem for both pnpm and npm projects, groups minor and patch updates
+into one pull request, and leaves major updates in separate pull requests.
+Commit the lockfile after installing dependencies, and review and test updates before merging.
+
+It is opt-in and available under Extras in the wizard. Use `--keep-config` to preserve an existing
+Dependabot configuration. No GitHub Actions workflows are generated or configured by this option.
+
 ## Command Line Options
 
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
@@ -308,13 +318,15 @@ installed: compile the stylesheets first with `pnpm css`, as the `--docker` imag
         --docker         add a Dockerfile for a production image
         --lint           add ESLint and a lint script
         --readme         add a README with setup and usage instructions
+        --dependabot     add Dependabot for weekly dependency updates on GitHub
         --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)
         --install        install the dependencies after creating the app
         --no-git         skip the .gitignore
     -f, --force          force on non-empty directory
         --keep-config    keep existing config files (.env.example, Dockerfile,
                          .dockerignore, tsconfig.json, eslint.config.*,
-                         pnpm-workspace.yaml, .npmrc, README.md)
+                         pnpm-workspace.yaml, .npmrc, README.md,
+                         .github/dependabot.yml)
         --version        output the version number
     -h, --help           output usage information
 

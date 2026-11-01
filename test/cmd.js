@@ -443,6 +443,67 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--dependabot', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create a Dependabot configuration when requested', function (done) {
+      run(ctx.dir, ['--dependabot', '--no-git'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(utils.parseCreatedFiles(stdout, ctx.dir).includes('.github/dependabot.yml'))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, '.github/dependabot.yml'), 'utf8'),
+          fs.readFileSync(path.resolve(import.meta.dirname, '../templates/app/dependabot.yml'), 'utf8'))
+        done()
+      })
+    })
+
+    it('should keep an existing configuration and other GitHub files with --keep-config', function (done) {
+      fs.writeFileSync(path.join(ctx.dir, '.github/dependabot.yml'), '# My dependency updates\n')
+      fs.writeFileSync(path.join(ctx.dir, '.github/CODEOWNERS'), '* @example\n')
+
+      run(ctx.dir, ['--dependabot', '--force', '--keep-config'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(/keep.*: .*dependabot\.yml/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, '.github/dependabot.yml'), 'utf8'), '# My dependency updates\n')
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, '.github/CODEOWNERS'), 'utf8'), '* @example\n')
+        done()
+      })
+    })
+
+    it('should list an existing configuration before overwriting it', function (done) {
+      runWithInput(ctx.dir, ['--dependabot'], 'n\n', function (err, code, stdout) {
+        if (err) return done(err)
+        assert.strictEqual(code, 1)
+        assert.ok(/these existing files will be overwritten:[\s\S]*dependabot\.yml/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, '.github/dependabot.yml'), 'utf8'), '# My dependency updates\n')
+        done()
+      })
+    })
+
+    it('should overwrite an existing configuration when forced', function (done) {
+      run(ctx.dir, ['--dependabot', '--force'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(/overwrite.*: .*dependabot\.yml/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, '.github/dependabot.yml'), 'utf8'),
+          fs.readFileSync(path.resolve(import.meta.dirname, '../templates/app/dependabot.yml'), 'utf8'))
+        done()
+      })
+    })
+
+    it('should report a file blocking the GitHub folder before writing the app', function (done) {
+      const blocked = path.join(ctx.dir, 'blocked')
+      fs.mkdirSync(blocked)
+      fs.writeFileSync(path.join(blocked, '.github'), 'not a folder\n')
+
+      runRaw(blocked, ['--dependabot', '--force'], function (err, code, stdout, stderr) {
+        if (err) return done(err)
+        assert.strictEqual(code, 1)
+        assert.ok(stderr.includes('.github is a file, where a folder is needed'))
+        assert.ok(!fs.existsSync(path.join(blocked, 'package.json')))
+        done()
+      })
+    })
+  })
+
   describe('--readme', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 

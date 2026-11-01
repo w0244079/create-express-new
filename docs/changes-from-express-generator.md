@@ -18,6 +18,7 @@ This fork started from `express-generator` 4.16.1.
 - A `GET /health` endpoint for load balancers, container health checks and uptime monitors
 - `--lint` for ESLint, including typescript-eslint for TypeScript apps
 - `--readme` for setup and usage instructions tailored to the generated app
+- `--dependabot` for weekly dependency updates on GitHub, with grouped minor and patch updates
 - A `dev` script using `node --watch`
 - A generated test suite using `node:test` and `fetch`, run by the `test` script
 - A `test:coverage` script using Node.js's built-in test coverage
