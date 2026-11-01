@@ -67,7 +67,7 @@ describe('app README', function () {
     })
 
     for (const expected of [
-      'pnpm typecheck', 'pnpm lint', 'pnpm css', 'pnpm css:watch',
+      'pnpm test:coverage', 'pnpm typecheck', 'pnpm lint', 'pnpm css', 'pnpm css:watch',
       'Helmet', 'Compression', 'req.cookies', 'req.log', 'pino-pretty',
       'CORS_ORIGIN', 'RATE_LIMIT_MAX', 'RATE_LIMIT_WINDOW_MS', 'TRUST_PROXY',
       'SESSION_SECRET', 'persistent session store', 'UPLOAD_MAX_SIZE',
