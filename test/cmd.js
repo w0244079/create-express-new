@@ -443,6 +443,37 @@ describe('express(1)', function () {
     })
   })
 
+  describe('--ci', function () {
+    const ctx = setupTestEnvironment(this.fullTitle())
+
+    it('should create a workflow tailored to the app options', function (done) {
+      run(ctx.dir, ['--ci', '--no-git', '--ts', '--lint', '--pm=npm'], function (err, stdout) {
+        if (err) return done(err)
+        const files = utils.parseCreatedFiles(stdout, ctx.dir)
+        const workflow = fs.readFileSync(path.join(ctx.dir, '.github/workflows/ci.yml'), 'utf8')
+
+        assert.ok(files.includes('.github/workflows/ci.yml'))
+        assert.ok(workflow.includes('npm ci'))
+        assert.ok(workflow.includes('npm run test:coverage'))
+        assert.ok(workflow.includes('npm run lint'))
+        assert.ok(workflow.includes('npm run typecheck'))
+        assert.ok(!workflow.includes('pnpm'))
+        done()
+      })
+    })
+
+    it('should keep an existing workflow with --keep-config', function (done) {
+      fs.writeFileSync(path.join(ctx.dir, '.github/workflows/ci.yml'), '# My workflow\n')
+
+      run(ctx.dir, ['--ci', '--force', '--keep-config'], function (err, stdout) {
+        if (err) return done(err)
+        assert.ok(/keep.*: .*workflows[\\/]ci\.yml/.test(stdout))
+        assert.strictEqual(fs.readFileSync(path.join(ctx.dir, '.github/workflows/ci.yml'), 'utf8'), '# My workflow\n')
+        done()
+      })
+    })
+  })
+
   describe('--dependabot', function () {
     const ctx = setupTestEnvironment(this.fullTitle())
 
@@ -2233,6 +2264,7 @@ describe('express(1)', function () {
         assert.ok(/--readme/.test(stdout))
         assert.ok(/--help/.test(stdout))
         assert.ok(/--version/.test(stdout))
+        assert.ok(/--ci/.test(stdout))
         done()
       })
     })

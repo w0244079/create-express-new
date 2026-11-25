@@ -32,6 +32,7 @@ describe('wizard', function () {
         compression: false,
         cookies: false,
         cors: false,
+        ci: false,
         dependabot: false,
         docker: false,
         force: false,
@@ -260,6 +261,22 @@ describe('wizard', function () {
         assert.strictEqual(result.options.readme, true)
         assert.ok(result.output.includes('README'))
         assert.ok(result.output.includes('pnpm create express-new@latest my-app ' + (api ? '--api ' : '') + '--readme'))
+      })
+    })
+
+    it('should offer GitHub Actions CI for a ' + (api ? 'JSON API' : 'web app'), function () {
+      const keys = [
+        ENTER, ...(api ? [DOWN] : []), ENTER,
+        ...(!api ? [ENTER] : []), ENTER,
+        ENTER, ENTER,
+        ...Array(api ? 4 : 5).fill(DOWN), ' ', ENTER,
+        ENTER, ENTER, 'n', ENTER
+      ]
+
+      return answer(keys).then(function (result) {
+        assert.strictEqual(result.options.ci, true)
+        assert.ok(result.output.includes('GitHub Actions'))
+        assert.ok(result.output.includes('pnpm create express-new@latest my-app ' + (api ? '--api ' : '') + '--ci'))
       })
     })
   }
@@ -615,6 +632,12 @@ describe('toCommand', function () {
     assert.strictEqual(toCommand(options({ dependabot: true })), 'pnpm create express-new@latest app --dependabot')
     assert.strictEqual(toCommand(options({ dependabot: true, pm: 'npm' })), 'npm create express-new@latest app -- --dependabot --pm=npm')
     assert.strictEqual(toCommand(options({ dependabot: false })), 'pnpm create express-new@latest app')
+  })
+
+  it('should include --ci only when selected', function () {
+    assert.strictEqual(toCommand(options({ ci: true })), 'pnpm create express-new@latest app --ci')
+    assert.strictEqual(toCommand(options({ ci: true, pm: 'npm' })), 'npm create express-new@latest app -- --ci --pm=npm')
+    assert.strictEqual(toCommand(options({ ci: false })), 'pnpm create express-new@latest app')
   })
 
   it('should include the new middleware and a logger other than morgan', function () {

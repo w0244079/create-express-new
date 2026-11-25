@@ -30,7 +30,7 @@ $ pnpm create express-new@latest
 - the language: JavaScript, TypeScript or CommonJS
 - optional middleware, and CSRF protection with sessions
 - the request logger
-- extras: a Dockerfile, ESLint, Sass, an app README and Dependabot
+- extras: a Dockerfile, ESLint, Sass, an app README, Dependabot and GitHub Actions CI
 - a `.gitignore`
 - the [package manager](#package-manager) the app requires: pnpm, or npm
 
@@ -291,6 +291,14 @@ Commit the lockfile after installing dependencies, and review and test updates b
 It is opt-in and available under Extras in the wizard. Use `--keep-config` to preserve an existing
 Dependabot configuration. No GitHub Actions workflows are generated or configured by this option.
 
+### GitHub Actions CI
+
+`--ci` adds `.github/workflows/ci.yml` to run tests with coverage on Node.js 22, 24 and 26 for pushes
+to `main` and pull requests. It also compiles Sass when selected, and runs lint and type checks when
+those options are selected. Commit the lockfile after installing dependencies so CI can install
+reproducibly. It is opt-in and available under Extras in the wizard; `--keep-config` preserves an
+existing workflow.
+
 ## Command Line Options
 
     -v, --view <engine>  add view <engine> support (ejs|hbs|pug|twig) (defaults to pug)
@@ -319,6 +327,7 @@ Dependabot configuration. No GitHub Actions workflows are generated or configure
         --lint           add ESLint and a lint script
         --readme         add a README with setup and usage instructions
         --dependabot     add Dependabot for weekly dependency updates on GitHub
+        --ci             add GitHub Actions to test the app on Node.js 22, 24 and 26
         --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)
         --install        install the dependencies after creating the app
         --no-git         skip the .gitignore
@@ -326,7 +335,7 @@ Dependabot configuration. No GitHub Actions workflows are generated or configure
         --keep-config    keep existing config files (.env.example, Dockerfile,
                          .dockerignore, tsconfig.json, eslint.config.*,
                          pnpm-workspace.yaml, .npmrc, README.md,
-                         .github/dependabot.yml)
+                         .github/dependabot.yml, .github/workflows/ci.yml)
         --version        output the version number
     -h, --help           output usage information
 

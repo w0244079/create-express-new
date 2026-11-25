@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-25
+
+### Added
+
+- `--ci` adds a GitHub Actions workflow to run tests with coverage on Node.js 22, 24 and 26, plus
+  optional Sass compilation, linting and TypeScript checks. The wizard offers it under Extras.
+
 ## [1.6.0] - 2026-11-01
 
 ### Added
@@ -190,7 +197,8 @@ the full list and a table for migrating commands.
 - The `-e/--ejs`, `--hbs`, `--pug` and `-H/--hogan` aliases; use `--view=<engine>`
 - The `debug` package and `DEBUG=...` start instructions
 
-[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/w0244079/create-express-new/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/w0244079/create-express-new/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/w0244079/create-express-new/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/w0244079/create-express-new/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/w0244079/create-express-new/compare/v1.4.0...v1.4.1

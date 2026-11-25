@@ -16,6 +16,7 @@ const VERSION = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 
 const OPTIONS = {
   api: { type: 'boolean' },
   cjs: { type: 'boolean' },
+  ci: { type: 'boolean' },
   compression: { type: 'boolean' },
   cookies: { type: 'boolean' },
   cors: { type: 'boolean' },
@@ -542,6 +543,7 @@ function usage () {
   console.log('        --lint           add ESLint and a lint script')
   console.log('        --readme         add a README with setup and usage instructions')
   console.log('        --dependabot     add Dependabot for weekly dependency updates on GitHub')
+  console.log('        --ci             add GitHub Actions to test the app on Node.js 22, 24 and 26')
   console.log('        --pm <name>      package manager the app requires (pnpm|npm) (defaults to pnpm)')
   console.log('        --install        install the dependencies after creating the app')
   console.log('        --no-git         skip the .gitignore')
@@ -549,7 +551,7 @@ function usage () {
   console.log('        --keep-config    keep existing config files (.env.example, Dockerfile,')
   console.log('                         .dockerignore, tsconfig.json, eslint.config.*,')
   console.log('                         pnpm-workspace.yaml, .npmrc, README.md,')
-  console.log('                         .github/dependabot.yml)')
+  console.log('                         .github/dependabot.yml, .github/workflows/ci.yml)')
   console.log('        --version        output the version number')
   console.log('    -h, --help           output usage information')
 }
